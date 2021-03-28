@@ -12,7 +12,7 @@ eurovals=c(grep("EU",dat$`Central Value ($ per ton CO2)`),grep("EU",dat$`Reporte
 exchange=read.csv("data/exchangerates.csv")
 
 #find columns that need to be transformed
-distcols=
+distcols=which(names(dat) == 'Min'):which(names(dat) == 'Max')
 relcols=c(which(colnames(dat)%in%c("Central Value ($ per ton CO2)","Reported Base Model SCC (if applicable)")),distcols)
 
 for(j in eurovals){
@@ -41,7 +41,7 @@ for(i in 1:length(missing)){
   if(mod%in%lookup$Model){
     dat$`SCC Dollar Year`[missing[i]]=lookup$Dollar.Year[which(lookup$Model==mod)]
     next
-  } 
+  }
   else{
     dat$`SCC Dollar Year`[missing[i]]=dat$Year[missing[i]]-5 #if no dollar year value and no model match then use 5 years before the publication year
   }
@@ -62,7 +62,8 @@ def=def%>%
 def$deflator=def$deflator/def$deflator[which(def$year==2020)]*100
 
 #merge into dataset and adjust all dollar values (Central SCC, Base SCC, and distribution ranges) to 2020 values
-dat=merge(dat,def,by.x ="SCC Dollar Year",by.y="year",all.x=TRUE,all.y=FALSE,sort=FALSE)
+names(dat)[duplicated(names(dat))] <- paste0(names(dat)[duplicated(names(dat))], '2')
+dat = dat %>% left_join(def, by=c("SCC Dollar Year"="year"))
 
 relcols=c(which(colnames(dat)%in%c("Central Value ($ per ton CO2)","Reported Base Model SCC (if applicable)")),which(colnames(dat)=="Min"):which(colnames(dat)=="Max"))
 for(i in relcols) dat[,i]=dat[,i]/(dat$deflator/100)
