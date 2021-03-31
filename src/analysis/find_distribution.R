@@ -3,6 +3,10 @@
 ## The core function defined here is `generate.pdf`, which takes draws
 ## from a distribution estimated from its mean and quantile values.
 ##
+## Throughout, the `mu` parameter is assumed to be the mean, and may
+## be NA, `qs` is a vector of quantiles between 0 and 1, and `as` is
+## the corresponding vector of locations of those quantiles.
+##
 ## The distribution estimation process is as follows:
 ##
 ## 1. If only a central value is given, all draws match it.
