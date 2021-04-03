@@ -27,7 +27,7 @@ dat$`SCC Dollar Year`=as.numeric(dat$`SCC Dollar Year`)
 dat$Year=as.numeric(dat$Year)
 dat$`Central Value ($ per ton CO2)`=as.numeric(dat$`Central Value ($ per ton CO2)`)
 dat$`Reported Base Model SCC (if applicable)`=as.numeric(dat$`Reported Base Model SCC (if applicable)`)
-for(i in distcols) dat[,i]=lapply(dat[,i],as.numeric)
+for(i in distcols) dat[,i]=as.numeric(dat[,i])
 
 #run modelnames cleaningscript (cleaning_modelnames.R) to standardize model names
 
