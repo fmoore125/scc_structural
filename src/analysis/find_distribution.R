@@ -32,6 +32,11 @@
 ##
 ## 7. Otherwise, the distribution is assumed to be a mixture of up to
 ##    k - 2 Gaussians, where k is the number of fitting values.
+##
+## 8. If cases 3 - 7 are used, an alternnative model consisting of a
+##    piecewise uniform distribution with weights from the spans
+##    between quantiles is tried as an alternative, and the
+##    best-scoring distribution is returned.
 
 library(sn)
 
