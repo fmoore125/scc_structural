@@ -7,7 +7,7 @@ library(ggplot2)
 ## Prepare data
 source("src/data_cleaining_scripts/cleaning_standardizedollaryears.R")
 
-perref <- data.frame(table(df$Reference))
+perref <- data.frame(table(dat$Reference))
 names(perref) <- c("Reference", "rows")
 
 df2 <- dat %>% left_join(perref)
