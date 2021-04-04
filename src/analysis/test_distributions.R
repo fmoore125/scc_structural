@@ -19,8 +19,12 @@ for (ii in 1:nrow(dat)) {
     }
 
     values <- generate.pdf(mu, qs, as, 1e6)
-    score <- score.dist.draws(mu, qs, as, values)
+    if (is.null(values)) {
+        result <- rbind(results, data.frame(ii, central=NA, score=NA, solution=last.solution))
+        next
+    }
 
+    score <- score.dist.draws(mu, qs, as, values)
     results <- rbind(results, data.frame(ii, central=get.central(mu, qs, as), score, solution=last.solution))
 }
 
@@ -28,12 +32,12 @@ library(ggplot2)
 
 ggplot(results, aes(pmin(2.5, sqrt(score) / central), fill=solution)) +
     geom_histogram() + scale_y_continuous(expand=c(0, 0)) +
-    theme_bw() + xlab("Root-Sum-Squared Errors / Central Estimate")
+    theme_bw() + xlab("RMSE / Central Estimate")
 
 ggplot(results, aes(ifelse(sqrt(score) / central < 1, sqrt(score) / central, NA), fill=solution)) +
     geom_histogram() + coord_cartesian(ylim=c(0, 100)) + scale_y_continuous(expand=c(0, 0)) +
     scale_x_continuous(expand=c(0, 0)) +
-    theme_bw() + xlab("Root-Sum-Squared Errors / Central Estimate")
+    theme_bw() + xlab("RMSE / Central Estimate")
 
 sum(sqrt(results$score) / results$central > 1, na.rm=T)
 sum(sqrt(results$score) / results$central < .01, na.rm=T)
