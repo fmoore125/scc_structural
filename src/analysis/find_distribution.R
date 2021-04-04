@@ -113,13 +113,18 @@ generate.pdf <- function(mu, qs, as, N) {
         as2 <- c(as2, mu)
     }
 
-    values.alt <- generate.piecewise.pdf(qs2, as2, N)
-    if (!is.null(values.alt)) {
-        score <- score.dist.draws(mu, qs, as, values)
-        score.alt <- score.dist.draws(mu, qs, as, values.alt)
-        if (score.alt < score) {
-            last.solution <<- "piecewise"
-            values <- values.alt
+    if (length(qs2) > 1) {
+        values.alt <- generate.piecewise.pdf(qs2, as2, N)
+        if (!is.null(values.alt)) {
+            score <- score.dist.draws(mu, qs, as, values)
+            score.alt <- score.dist.draws(mu, qs, as, values.alt)
+            if (score.alt < score) {
+                if (is.bounded(qs))
+                    last.solution <<- "piecewise bounded"
+                else
+                    last.solution <<- "piecewise exp-tail"
+                values <- values.alt
+            }
         }
     }
 
@@ -143,7 +148,7 @@ generate.piecewise.pdf <- function(qs, as, N) {
         ## Approximate the exponential decay
         ## cdf.y = 1 - exp(-lambda x)
         ## 1 - cdf.y = exp(-lambda x)
-        log.flip.cdf.y <- log(1 - cumsum(qs))
+        log.flip.cdf.y <- log(1 - qs)
         mod <- lm(log.flip.cdf.y ~ as)
         lambda <- abs(mod$coeff[2])
         if (is.na(lambda))
@@ -208,7 +213,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
                 if (.001 %in% qs)
                     valid <- newvals >= as[qs == .001]
                 if (.999 %in% qs)
-                    valid <- valid & (newvals <= as[qs == .001])
+                    valid <- valid & (newvals <= as[qs == .999])
                 score.dist.draws(mu, qs, as, newvals[valid])
             }, c(-1, 1) * max(abs(vals)))
 
@@ -217,7 +222,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
             if (.001 %in% qs)
                 valid <- newvals >= as[qs == .001]
             if (.999 %in% qs)
-                valid <- valid & (newvals <= as[qs == .001])
+                valid <- valid & (newvals <= as[qs == .999])
 
             last.solution <<- paste(last.solution, "trucated")
             return(sample(vals[valid], N, replace=T))
