@@ -30,15 +30,17 @@ for (ii in 1:nrow(dat)) {
 
 library(ggplot2)
 
-ggplot(results, aes(pmin(2.5, sqrt(score) / central), fill=solution)) +
+ggplot(results, aes(pmin(2.5, score / central), fill=solution)) +
     geom_histogram() + scale_y_continuous(expand=c(0, 0)) +
     theme_bw() + xlab("RMSE / Central Estimate")
 
-ggplot(results, aes(ifelse(sqrt(score) / central < 1, sqrt(score) / central, NA), fill=solution)) +
+ggplot(results, aes(ifelse(score / central < 1, score / central, NA), fill=solution)) +
     geom_histogram() + coord_cartesian(ylim=c(0, 100)) + scale_y_continuous(expand=c(0, 0)) +
     scale_x_continuous(expand=c(0, 0)) +
     theme_bw() + xlab("RMSE / Central Estimate")
 
-sum(sqrt(results$score) / results$central > 1, na.rm=T)
-sum(sqrt(results$score) / results$central < .01, na.rm=T)
+sum(results$score / results$central > 1, na.rm=T)
+sum(results$score / results$central < .01, na.rm=T)
 sum(rowSums(!is.na(dat[, which(names(dat) == 'Min'):which(names(dat) == 'Max')])) == 0 & !is.na(dat$`Central Value ($ per ton CO2)`))
+
+results[results$score > abs(results$central),]
