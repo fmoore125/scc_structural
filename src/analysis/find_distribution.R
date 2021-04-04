@@ -56,7 +56,7 @@ is.two.values <- function(mu, qs, as) {
 is.three.values <- function(mu, qs, as) {
     if (length(qs) == 2 && any(qs == 0) && any(qs == 1))
         return(!is.na(mu) && mu != mean(as))
-    return(F)
+    return(length(qs) == 3 && all(qs %in% c(0, .5, 1)) && is.na(mu))
 }
 
 ## Characteristics of continuous distributions
@@ -78,6 +78,26 @@ is.skewnormal <- function(mu, qs, as) {
            (!is.na(mu) && length(qs) == 1 && qs == .5 && as != mu))
 }
 
+## Other chekcs
+
+check.valid <- function(mu, qs, as) {
+    if (length(qs) > 0) {
+        if (length(qs) != length(as))
+            return(F)
+        if (!all(order(qs) == 1:length(qs)))
+            return(F)
+        if (!all(order(as) == 1:length(as)))
+            return(F)
+        if (!is.na(mu)) {
+            if (qs[1] == 0 && mu < as[1])
+                return(F)
+            if (qs[length(qs)] == 1 && mu > as[length(as)])
+                return(F)
+        }
+    }
+    return(T)
+}
+
 ##### Fitting functions
 
 ## Generate a PDF with a mean mu, and the value at quantiles qs equal
@@ -85,6 +105,11 @@ is.skewnormal <- function(mu, qs, as) {
 last.solution <- NA
 generate.pdf <- function(mu, qs, as, N) {
     last.solution <<- NA
+
+    if (!check.valid(mu, qs, as)) {
+        last.solution <<- "invalid"
+        return(NULL)
+    }
 
     ## Discrete distributions
 
@@ -95,12 +120,13 @@ generate.pdf <- function(mu, qs, as, N) {
 
     if (is.two.values(mu, qs, as)) {
         last.solution <<- "discrete"
-        return(c(rep(as[1], N/2), rep(as[2], N/2)))
+        return(runif(N, as[1], as[2]))
     }
 
     if (is.three.values(mu, qs, as)) {
         last.solution <<- "discrete"
-        return(c(rep(as[1], floor(N/3)), rep(as[2], floor(N/3)), rep(mu, N - 2*floor(N/3))))
+        med <- get.central(mu, qs, as)
+        return(c(runif(N / 2, as[qs == 0], med), runif(N / 2, med, as[qs == 1])))
     }
 
     values <- generate.general.pdf(mu, qs, as, N)
