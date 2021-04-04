@@ -4,8 +4,8 @@ library(tidyverse)
 
 #code to adjust values to common dollar years
 
-dat=as.data.frame(read_excel("data/data_collection/SCC Meta-Analysis Data Template_Revised.xlsx",sheet="Data Entry"))
-colnames(dat)=dat[2,];dat=dat[-c(1:2),]
+#dat=as.data.frame(read_excel("data/data_collection/SCC Meta-Analysis Data Template_Revised.xlsx",sheet="Data Entry"))
+#colnames(dat)=dat[2,];dat=dat[-c(1:2),]
 
 #convert values in Euros to dollars
 eurovals=c(grep("EU",dat$`Central Value ($ per ton CO2)`),grep("EU",dat$`Reported Base Model SCC (if applicable)`))
