@@ -1,9 +1,9 @@
 setwd("~/research/scciams/scc_structural")
 
 source("src/analysis/find_distribution.R")
-source("src/data_cleaining_scripts/cleaning_standardizedollaryears.R")
+source("src/data_cleaining_scripts/cleaning_master.R")
 
-all.qs <- c(0, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99, 1)
+all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
 all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
 
 results <- data.frame()
