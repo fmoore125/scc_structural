@@ -105,23 +105,21 @@ generate.pdf <- function(mu, qs, as, N) {
 
     values <- generate.general.pdf(mu, qs, as, N)
 
-    if (!is.bounded(qs)) {
-        ## Try piecewise uniform as a backup
-        qs2 <- qs
-        as2 <- as
-        if (!is.na(mu) && !any(qs == .5)) {
-            qs2 <- c(qs2, .5)
-            as2 <- c(as2, mu)
-        }
+    ## Try piecewise uniform as a backup
+    qs2 <- qs
+    as2 <- as
+    if (!is.na(mu) && !any(qs == .5)) {
+        qs2 <- c(qs2, .5)
+        as2 <- c(as2, mu)
+    }
 
-        values.alt <- generate.piecewise.pdf(qs2, as2, N)
-        if (!is.null(values.alt)) {
-            score <- score.dist.draws(mu, qs, as, values)
-            score.alt <- score.dist.draws(mu, qs, as, values.alt)
-            if (score.alt < score) {
-                last.solution <<- "piecewise"
-                values <- values.alt
-            }
+    values.alt <- generate.piecewise.pdf(qs2, as2, N)
+    if (!is.null(values.alt)) {
+        score <- score.dist.draws(mu, qs, as, values)
+        score.alt <- score.dist.draws(mu, qs, as, values.alt)
+        if (score.alt < score) {
+            last.solution <<- "piecewise"
+            values <- values.alt
         }
     }
 
@@ -135,18 +133,37 @@ generate.piecewise.pdf <- function(qs, as, N) {
     if (any(as != sort(as)))
         return(NULL)
 
-    if (qs[1] != 0)
-        qs[1] <- 0
-    if (qs[length(qs)] != 1)
-        qs[length(qs)] <- 1
+    if (is.bounded(qs)) {
+        if (qs[1] != 0)
+            qs[1] <- 0
+        if (qs[length(qs)] != 1)
+            qs[length(qs)] <- 1
+        lambda <- Inf
+    } else {
+        ## Approximate the exponential decay
+        ## cdf.y = 1 - exp(-lambda x)
+        ## 1 - cdf.y = exp(-lambda x)
+        log.flip.cdf.y <- log(1 - cumsum(qs))
+        mod <- lm(log.flip.cdf.y ~ as)
+        lambda <- abs(mod$coeff[2])
+        if (is.na(lambda))
+            lambda <- 1 # Why not?
+    }
 
     quants <- runif(N)
     values <- rep(NA, N)
+    below <- quants < qs[1]
+    if (any(below))
+        values[below] <- as[1] - rexp(sum(below), lambda)
     for (ii in 2:length(qs)) {
         within <- quants >= qs[ii-1] & quants < qs[ii]
         values[within] <- runif(sum(within), as[ii-1], as[ii])
     }
-    values[is.na(values)] <- as[length(as)]
+    above <- quants >= qs[length(qs)]
+    if (lambda == Inf)
+        values[above] <- as[length(as)]
+    else
+        values[above] <- as[length(as)] + rexp(sum(above), lambda)
 
     values
 }
@@ -353,9 +370,9 @@ generate.general.pdf <- function(mu, qs, as, N) {
 ## Score a proposed distribution against the data
 score.dist <- function(mu.true, mu.pred, as.true, as.pred) {
     if (is.na(mu.true))
-        return(sum((as.true - as.pred)^2))
+        return(sqrt(mean((as.true - as.pred)^2)))
     else
-        return((mu.true - mu.pred)^2 + sum((as.true - as.pred)^2))
+        return(sqrt(((mu.true - mu.pred)^2 + sum((as.true - as.pred)^2)) / (1 + length(as.true))))
 }
 
 ## Score a set of draws from a distribution
