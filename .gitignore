@@ -42,3 +42,6 @@ vignettes/*.pdf
 #R Project
 .RProj
 scc_structural.Rproj
+
+#Output Files and Figures too big for repo
+outputs/

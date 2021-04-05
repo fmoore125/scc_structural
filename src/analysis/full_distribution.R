@@ -1,7 +1,10 @@
+library(data.table)
+library(readxl)
+library(tidyverse)
+library(ggridges)
+
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
-
-library(data.table)
 
 all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
 all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
@@ -10,7 +13,6 @@ all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
 dists=list()
 for (ii in 1:nrow(dat)) {
   print(ii)
-  if(dat$ID_number[ii]=="1005.0") next #skip this problematic paper causing errors in generate. for the time being 
   all.as <- t(dat[ii, all.as.cols])
   qs <- all.qs[!is.na(all.as)]
   as <- all.as[!is.na(all.as)]
@@ -23,9 +25,6 @@ for (ii in 1:nrow(dat)) {
 }
 
 papers=unique(dat$ID_number)
-
-#for the time being, skip paper 1005 which is causing an error
-papers=papers[-which(papers=="1005.0")]
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -45,4 +44,16 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-fwrite(dist,file="C:/Users/fmoore/Box/Davis Stuff/SCC Structural Uncertainty/distribution.csv")
+fwrite(dist,file="outputs/distribution.csv")
+
+#make some figures analyzing variance in distribution
+mod=numeric(length=nrow(dist))
+mod[c(grep("DICE",dat$`Base IAM (if applicable)`[dist$row]),grep("DICE",dat$`IAM Calibrated To (if applicable)`[dist$row]))]="DICE"
+mod[c(grep("FUND",dat$`Base IAM (if applicable)`[dist$row]),grep("FUND",dat$`IAM Calibrated To (if applicable)`[dist$row]))]="FUND"
+mod[c(grep("PAGE",dat$`Base IAM (if applicable)`[dist$row]),grep("PAGE",dat$`IAM Calibrated To (if applicable)`[dist$row]))]="PAGE"
+mod[which(mod==0)]="Other"
+
+dist$mod=ordered(mod,levels=c("DICE","PAGE","FUND","Other"))
+
+a=ggplot(dist[which(dist$draw>quantile(dist$draw,0.01)&dist$draw<quantile(dist$draw,0.99)),],aes(x=draw,y=mod,group=mod))+geom_density_ridges(scale=0.9)
+a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="Base or Calibration Model")
