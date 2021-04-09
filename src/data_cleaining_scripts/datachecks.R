@@ -23,8 +23,6 @@ write.csv(duplicatedrows,"outputs/duplicated.csv")
 
 #second check - ranges reported with no parametric uncertainty?
 
-varcols=
-
 probs=numeric(length=nrow(dat))
 for(i in 1:length(probs)){
   paramuncertainty=dat[i,which(colnames(dat)=="Min"):which(colnames(dat)=="Max")]
@@ -33,3 +31,4 @@ for(i in 1:length(probs)){
   if(sum(is.na(reportedvar))==length(reportedvar)) probs[i]=1
 }
 
+nouncertainty=distinct(dat[which(probs==1),which(colnames(dat)%in%c("ID_number","Added By"))])
