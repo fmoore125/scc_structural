@@ -20,3 +20,16 @@ probs=names(which(table(test$rowid)>1))
 duplicatedrows=dat[which(test$rowid%in%probs),which(colnames(dat)%in%c("ID_number","Added By"))]
 duplicatedrows=distinct(duplicatedrows)
 write.csv(duplicatedrows,"outputs/duplicated.csv")
+
+#second check - ranges reported with no parametric uncertainty?
+
+varcols=
+
+probs=numeric(length=nrow(dat))
+for(i in 1:length(probs)){
+  paramuncertainty=dat[i,which(colnames(dat)=="Min"):which(colnames(dat)=="Max")]
+  if(sum(is.na(paramuncertainty))==length(paramuncertainty)) next #no parametric uncertainty
+  reportedvar=dat[i,which(colnames(dat)=="TFP Growth"):which(colnames(dat)=="Risk Aversion (EZ Utility)")]
+  if(sum(is.na(reportedvar))==length(reportedvar)) probs[i]=1
+}
+
