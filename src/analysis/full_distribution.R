@@ -61,6 +61,35 @@ a=a+stat_density_ridges(geom="density_ridges_gradient",calc_ecdf = TRUE,quantile
 a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="Base or Calibration Model")+ scale_fill_viridis_d(name = "Quartiles")
 a=a+theme(text=element_text(size=20))
 
+#look at differences in distribution by structural parameters, year, discount rate etc
+dist$year=as.numeric(dat$`SCC Year`[dist$row])
+dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2050,2090,2400))
+dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2050'="(2.01e+03,2.05e+03]",'2050-2090'="(2.05e+03,2.09e+03]",'>2090'="(2.09e+03,2.4e+03]")
+
+dist$yeargroup=ordered(dist$yeargroup,levels=c("<2010","2010-2050","2050-2090",">2090"))
+
+a=ggplot(dist[which(dist$draw>quantile(dist$draw,0.01)&dist$draw<quantile(dist$draw,0.99)),]%>%filter(!is.na(yeargroup)),aes(x=draw,y=yeargroup,group=yeargroup,fill=factor(stat(quantile))))
+a=a+stat_density_ridges(geom="density_ridges_gradient",calc_ecdf = TRUE,quantiles=4,quantile_lines = TRUE,bandwidth=2,scale=0.9)
+a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="SCC Year")+ scale_fill_viridis_d(name = "Quartiles")
+a=a+theme(text=element_text(size=20))
+x11()
+a
+
+#plot of structural parameters
+
+struc=dat%>%select('Carbon Cycle':'Learning')%>% #note- this is dropping two of the strucutral columns that have very few rows in them
+  replace(is.na(.),"No") %>%
+  replace(.=="1.0","Yes")
+colnames(struc)[which(colnames(struc)=="Tipping Points")]="Climate Tipping Points"
+colnames(struc)[which(colnames(struc)=="Tipping Points2")]="Damage Tipping Points"
+
+dist=cbind(dist,struc[dist$row,])
+dist_struc=pivot_longer(dist,cols='Carbon Cycle':'Learning',names_to="StructuralChange",values_to = "Changed")%>%
+  filter(Changed%in%c("Yes","No"))#filter out some odd PAGE values where tipping points were removed from model
+
+a=ggplot(dist_struc[which(dist_struc$draw>quantile(dist_struc$draw,0.01)&dist_struc$draw<quantile(dist_struc$draw,0.99)),],aes(x=draw,y=Changed))+
+  geom_density_ridges(bandwidth=2)+facet_wrap(~StructuralChange)+theme_bw()+labs(x="SCC ($ per ton CO2)",y="Change Present?")
+
 #identify high-leverage papers - how much does mean change if paper is dropped?
 
 meanchange=numeric(length=length(papers))
