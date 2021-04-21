@@ -60,3 +60,22 @@ a=ggplot(dist[which(dist$draw>quantile(dist$draw,0.01)&dist$draw<quantile(dist$d
 a=a+stat_density_ridges(geom="density_ridges_gradient",calc_ecdf = TRUE,quantiles=4,quantile_lines = TRUE,bandwidth=2,scale=0.9)
 a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="Base or Calibration Model")+ scale_fill_viridis_d(name = "Quartiles")
 a=a+theme(text=element_text(size=20))
+
+#identify high-leverage papers - how much does mean change if paper is dropped?
+
+meanchange=numeric(length=length(papers))
+meanval=mean(dist$draw)
+for(i in 1:length(meanchange)){
+  print(i)
+  rows=which(dat$ID_number==papers[i])
+  meanchange[i]=((mean(dist$draw[-which(dist$row%in%rows)])-meanval)/meanval)*100
+}
+meanchange=data.frame(ID_number=papers,change=meanchange)
+
+bibs=dat%>%
+  select(ID_number,Reference)%>%
+  distinct()
+
+meanchange=merge(meanchange,bibs)
+meanchange=meanchange%>%arrange(desc(abs(change)))
+write.csv(meanchange,file="outputs/meanleverage.csv")

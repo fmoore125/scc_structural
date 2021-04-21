@@ -1,5 +1,6 @@
 library(tidyverse)
 library(compare)
+library(readxl)
 
 dat=as.data.frame(read_excel("data/data_collection/SCC Meta-Analysis Data Template_Revised.xlsx",sheet="Data Entry"))
 colnames(dat)=dat[2,];dat=dat[-c(1:2),]
@@ -32,3 +33,5 @@ for(i in 1:length(probs)){
 }
 
 nouncertainty=distinct(dat[which(probs==1),which(colnames(dat)%in%c("ID_number","Added By"))])
+
+write.csv(nouncertainty,"outputs/nouncertainty.csv")
