@@ -7,6 +7,9 @@ library(viridisLite)
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
+coauthorweights$prob=coauthorweights$weight/sum(coauthorweights$weight)
+
 all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
 all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
 
@@ -24,8 +27,10 @@ for (ii in 1:nrow(dat)) {
   
   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 }
-
+dat$ID_number=as.numeric(dat$ID_number)
 papers=unique(dat$ID_number)
+
+weighting=TRUE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -33,11 +38,13 @@ dist=matrix(nrow=nsamp,ncol=2)
 for(i in 1:nsamp){
   if(i%%10000==0) print(i)
   
-  #first uniform draw from papers
-  paper=sample(papers,1)
+  if(weighting==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
+  if(weighting==TRUE) paper=sample(coauthorweights$ID_number,1,prob=coauthorweights$prob) #weigthing is inversely proportional to degree of shared authorship
   
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
+  if(490%in%rows) rows=rows[-which(rows%in%c(490,491))] #drop a couple rows with issues for the time being (null distribution since central value is outside min-max - Fran to double check values)
+  if(624%in%rows) rows=rows[-which(rows==624)] #drop a couple rows with issues for the time being (null distribution since central value is outside min-max - Fran to double check values)
   row=ifelse(length(rows)==1,rows,sample(rows,1))
 
   draw=sample(dists[[row]],1)
@@ -45,7 +52,8 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-fwrite(dist,file="outputs/distribution.csv")
+if(weighting==FALSE) fwrite(dist,file="outputs/distribution.csv")
+if(weighting==TRUE) fwrite(dist,file="outputs/distribution_coauthorweighted.csv")
 
 #make some figures analyzing variance in distribution
 mod=numeric(length=nrow(dist))
