@@ -50,8 +50,9 @@ for(k in 1:nreps){
 
 #get average null value
 nullval=mean(colMeans(nullboots))
+save(nullval,file="src/analysis/paper_covariance/nullvalue.Rdat")
 
 #weighting function based on shared authorship across papers
-weights=data.frame(ID_number=authors$ID_number,weight=1/(rowSums(sharedauthors)/nullval+1))
+weights=data.frame(ID_number=authors$ID_number,weight=ifelse(rowSums(sharedauthors)<nullval,1,1/(rowSums(sharedauthors)-nullval+1)))
 
 write.csv(weights,file="src/analysis/paper_covariance/paperweightings.csv")
