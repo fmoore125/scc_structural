@@ -8,6 +8,7 @@ source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
 coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
+coauthorweights=coauthorweights[-which(coauthorweights$ID_number==2599),] #remove one problematic paper without a probability distribution at the moment
 coauthorweights$prob=coauthorweights$weight/sum(coauthorweights$weight)
 
 all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
@@ -29,6 +30,7 @@ for (ii in 1:nrow(dat)) {
 }
 dat$ID_number=as.numeric(dat$ID_number)
 papers=unique(dat$ID_number)
+papers=papers[-which(papers==2599)] #removte one problematic row without a probability distribution at the moment
 
 weighting=TRUE
 
@@ -43,8 +45,6 @@ for(i in 1:nsamp){
   
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
-  if(490%in%rows) rows=rows[-which(rows%in%c(490,491))] #drop a couple rows with issues for the time being (null distribution since central value is outside min-max - Fran to double check values)
-  if(624%in%rows) rows=rows[-which(rows==624)] #drop a couple rows with issues for the time being (null distribution since central value is outside min-max - Fran to double check values)
   row=ifelse(length(rows)==1,rows,sample(rows,1))
 
   draw=sample(dists[[row]],1)
@@ -116,3 +116,15 @@ bibs=dat%>%
 meanchange=merge(meanchange,bibs)
 meanchange=meanchange%>%arrange(desc(abs(change)))
 write.csv(meanchange,file="outputs/meanleverage.csv")
+
+###----compare distributions with and without co-author weighting ---------------
+
+dist=fread(file="outputs/distribution.csv")
+dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
+
+range=quantile(dist$draw,c(0.01,0.99))
+density_unweighted=density(dist$draw,from=range[1],to=range[2],bw=10)
+density_weighted=density(dist_weighted$draw,from=range[1],to=range[2],bw=10)
+
+plot(x=density_unweighted$x,y=density_unweighted$y,type="l",lwd=2)
+lines(x=density_weighted$x,y=density_weighted$y,lwd=2,col="red")
