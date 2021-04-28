@@ -8,8 +8,9 @@ source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
 coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
-coauthorweights=coauthorweights[-which(coauthorweights$ID_number==2599),] #remove one problematic paper without a probability distribution at the moment
 coauthorweights$prob=coauthorweights$weight/sum(coauthorweights$weight)
+citationweights=read.csv(file="outputs/citations.csv")
+citationweights$prob=citationweights$normalized_peryear/sum(citationweights$normalized_peryear)
 
 all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
 all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
@@ -30,9 +31,10 @@ for (ii in 1:nrow(dat)) {
 }
 dat$ID_number=as.numeric(dat$ID_number)
 papers=unique(dat$ID_number)
-papers=papers[-which(papers==2599)] #removte one problematic row without a probability distribution at the moment
 
-weighting=TRUE
+#set both to false for unweighted distribution, set one to false and the other to true for 
+weighting_coauthors=FALSE
+weighting_citations=TRUE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -40,9 +42,10 @@ dist=matrix(nrow=nsamp,ncol=2)
 for(i in 1:nsamp){
   if(i%%10000==0) print(i)
   
-  if(weighting==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
-  if(weighting==TRUE) paper=sample(coauthorweights$ID_number,1,prob=coauthorweights$prob) #weigthing is inversely proportional to degree of shared authorship
-  
+  if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
+  if(weighting_coauthors==TRUE&weighting_citations==FALSE) paper=sample(coauthorweights$ID_number,1,prob=coauthorweights$prob) #weigthing is inversely proportional to degree of shared authorship
+  if(weighting_coauthors==FALSE&weighting_citations==TRUE) paper=sample(citationweights$ID_number,1,prob=citationweights$prob) #weigthing is inversely proportional to degree of shared authorship
+    
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
   row=ifelse(length(rows)==1,rows,sample(rows,1))
@@ -52,8 +55,10 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-if(weighting==FALSE) fwrite(dist,file="outputs/distribution.csv")
-if(weighting==TRUE) fwrite(dist,file="outputs/distribution_coauthorweighted.csv")
+if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution.csv")
+if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted.csv")
+if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted.csv")
+
 
 #make some figures analyzing variance in distribution
 mod=numeric(length=nrow(dist))
@@ -121,10 +126,9 @@ write.csv(meanchange,file="outputs/meanleverage.csv")
 
 dist=fread(file="outputs/distribution.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
+dist_weighted_citations=fread(file="outputs/distribution_citationweighted.csv")
 
-range=quantile(dist$draw,c(0.01,0.99))
-density_unweighted=density(dist$draw,from=range[1],to=range[2],bw=10)
-density_weighted=density(dist_weighted$draw,from=range[1],to=range[2],bw=10)
-
-plot(x=density_unweighted$x,y=density_unweighted$y,type="l",lwd=2)
-lines(x=density_weighted$x,y=density_weighted$y,lwd=2,col="red")
+#compare quantiles
+breaks=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
+quantiles=data.frame(quantilesplits=breaks,unweighted=quantile(dist$draw,breaks),coauthorweights=quantile(dist_weighted$draw,breaks),citationweights=quantile(dist_weighted_citations$draw,breaks))
+write.csv(quantiles,file="outputs/quantiles_differentweightings.csv")
