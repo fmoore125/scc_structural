@@ -1,4 +1,5 @@
 library(readxl)
+library(reshape2)
 library(tidyverse)
 
 # generate distributions for initial coding and recoding
@@ -53,7 +54,6 @@ for(i in 1:length(papers)){
   #repeat for recoded data
   
   rows_recode=which(recode$ID_number==papers[i])
-  if(47%in%rows_recode) rows_recode=rows_recode[-which(rows_recode==47)] #temporarily drop a problematic row
   if(155%in%rows_recode) rows_recode=rows_recode[-which(rows_recode%in%c(155,156))] #more problemeatic rows
   rowdist_recode=list()
   
@@ -79,6 +79,21 @@ for(i in 1:length(papers)){
 x11()
 par(mfrow=c(3,3),mar=c(2,2,2,2))
 for(i in 1:9){
-  hist(orig_fulldist[[i]])
-  hist(recode_fulldist[[i]],col="red",add=T)
+  fulldat=data.frame(orig=orig_fulldist[[i]],recode=recode_fulldist[[i]])
+  fulldat=pivot_longer(fulldat,cols=c(orig,recode))
+  fulldat$name=as.factor(fulldat$name)
+  
+  boxplot(value~name,data=fulldat,names=c("Original","Recoded"),main=paste("Paper", papers[i]))
+
+}
+
+x11()
+par(mfrow=c(3,3),mar=c(2,2,2,2))
+for(i in 10:length(papers)){
+  fulldat=data.frame(orig=orig_fulldist[[i]],recode=recode_fulldist[[i]])
+  fulldat=pivot_longer(fulldat,cols=c(orig,recode))
+  fulldat$name=as.factor(fulldat$name)
+  
+  boxplot(value~name,data=fulldat,names=c("Original","Recoded"),main=paste("Paper", papers[i]))
+  
 }
