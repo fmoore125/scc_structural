@@ -1,3 +1,6 @@
+## setwd("~/research/scciams/scc_structural")
+## source("src/data_cleaining_scripts/cleaning_master.R")
+
 library(reshape2)
 
 ## Clean up inputted data
@@ -8,9 +11,11 @@ dat$`EMUC` <- as.numeric(dat$`EMUC`)
 dat$`RRA` <- as.numeric(dat$`RRA`)
 dat$`IES` <- as.numeric(dat$`IES`)
 
-##### Construct "effective discount rate"
+## Develop scenarios list
 
-scenarios <- list()
+## May be a single average growth rate, or a data.frame of year, rate
+scenarios.best <- list()
+scenarios.second <- list()
 
 ## Load SSP data
 
@@ -55,18 +60,90 @@ sspdf4.withrate %>% group_by(ssp) %>% summarize(rate=mean(dlog, na.rm=T))
 
 ## Record these
 for (ssp in unique(sspdf4.withrate$ssp))
-    scenarios[[ssp]] <- data.frame(year=sspdf4.withrate$year[sspdf4.withrate$ssp == ssp], rate=sspdf4.withrate$dlog[sspdf4.withrate$ssp == ssp])
+    scenarios.best[[ssp]] <- data.frame(year=sspdf4.withrate$year[sspdf4.withrate$ssp == ssp], rate=sspdf4.withrate$dlog[sspdf4.withrate$ssp == ssp])
 
 ## Use these for other standard scenarios
 
-scenarios[['BAU']] <- scenarios[['SSP5']]
-scenarios[['Baseline']] <- scenarios[['SSP5']]
-scenarios[['Base']] <- scenarios[['SSP5']]
-scenarios[['Optimal']] <- scenarios[['SSP2']]
-scenarios[['Stabilization']] <- scenarios[['SSP1']]
+scenarios.second[['BAU']] <- scenarios.best[['SSP5']]
+scenarios.second[['Baseline']] <- scenarios.best[['SSP5']]
+scenarios.second[['Base']] <- scenarios.best[['SSP5']]
+scenarios.second[['Optimal']] <- scenarios.best[['SSP2']]
+scenarios.second[['Stabilization']] <- scenarios.best[['SSP1']]
 
 ## Record DICE average growth rates
 
-scenarios[['Baseline:DICE-1992']] <- log(22272 / 11293) / (2100 - 2015)
-scenarios[['Baseline:DICE-2016R']] <- log(73367 / 14183) / (2100 - 2015)
+scenarios.best[['Baseline:DICE-1992']] <- log(22272 / 11293) / (2100 - 2015)
+scenarios.best[['Baseline:DICE-2016R']] <- log(73367 / 14183) / (2100 - 2015)
 
+## Construct effective discount rate
+
+default.rate <- median(dat$`Constant Discount Rate (%)`, na.rm=T) / 100
+
+## Check for inconsistency
+
+dat$discount.problems <- NA
+dat$discount.problems[is.na(dat$PRTP) & is.na(dat$`Constant Discount Rate (%)`)] <- "no discounting"
+dat$discount.problems[!is.na(dat$PRTP) & !is.na(dat$`Constant Discount Rate (%)`)] <- "PRTP and constant"
+dat$discount.problems[!is.na(dat$EMUC) & !is.na(dat$RRA)] <- "EMUC and EZ"
+dat$discount.problems[!is.na(dat$PRTP) & (is.na(dat$EMUC) & is.na(dat$RRA))] <- "no elasticity"
+dat$discount.problems[(is.na(dat$RRA) & !is.na(dat$IES)) | (!is.na(dat$RRA) & is.na(dat$IES))] <- "incomplete EZ"
+
+dat$effective.discount.rate <- dat$`Constant Discount Rate (%)` / 100
+
+for (ii in which(!is.na(dat$PRTP))) {
+    scenario <- dat$`Scenario (e.g. Optimal, BAU)`[ii]
+    scendata <- NULL
+    if (scenario %in% names(scenarios.best)) {
+        scendata <- scenarios.best[[scenario]]
+    }
+    ## Model:Scenario entries
+    if (paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.best)) {
+        scendata <- scenarios.best[[paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':')]]
+    }
+    if (paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.best)) {
+        scendata <- scenarios.best[[paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':')]]
+    }
+    if (sum(sapply(names(scenarios.best), function(known) length(grep(known, scenario)))) > 0) {
+        found <- names(scenarios.best)[sapply(names(scenarios.best), function(known) length(grep(known, scenario))) > 0]
+        scendata <- scenarios.best[[found]]
+        dat$discount.problems[ii] <- "Ambiguous"
+    }
+    if (scenario %in% names(scenarios.second)) {
+        scendata <- scenarios.second[[scenario]]
+        dat$discount.problems[ii] <- "Second-best"
+    }
+    if (sum(sapply(names(scenarios.second), function(known) length(grep(known, scenario)))) > 0) {
+        found <- names(scenarios.second)[sapply(names(scenarios.second), function(known) length(grep(known, scenario))) > 0]
+        scendata <- scenarios.second[[found]]
+        dat$discount.problems[ii] <- "Ambiguous second-best"
+    }
+
+    if (is.null(scendata)) {
+        dat$discount.problems[ii] <- "No scenario"
+        next
+    }
+    
+    sccyear <- dat$`SCC Year`[ii]
+    if (is.data.frame(scendata)) {
+        growthrate <- mean(scendata$rate[scendata$year >= sccyear])
+    } else {
+        growthrate <- scendata
+    }
+    
+    if (is.na(dat$IES[ii])) {
+        dat$effective.discount.rate[ii] <- dat$PRTP[ii] + dat$IES[ii] * growthrate
+    } else {
+        dat$effective.discount.rate[ii] <- dat$PRTP[ii] + dat$EMUC[ii] * growthrate
+    }
+}
+
+
+dat$discount.problems[is.na(dat$discount.problems) & is.na(dat$effective.discount.rate)] <- "Unknown problem"
+
+if (any(!is.na(dat$discount.problems))) {
+    print("Discounting problems:")
+    print(table(dat$discount.problems))
+}
+
+dat$effective.discount.rate[is.na(dat$effective.discount.rate)] <- default.rate
+dat$effective.discount.rate.percent <- dat$effective.discount.rate * 100
