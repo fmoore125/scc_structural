@@ -5,7 +5,7 @@ library(dplyr)
 library(ggplot2)
 
 ## Prepare data
-source("src/data_cleaining_scripts/cleaning_standardizedollaryears.R")
+source("src/data_cleaining_scripts/cleaning_master.R")
 
 perref <- data.frame(table(dat$Reference))
 names(perref) <- c("Reference", "rows")
@@ -19,6 +19,20 @@ df2$log.scc.2020usd[!is.finite(df2$log.scc.2020usd)] <- NA
 ## Basic log model
 
 mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year`, data=df2, weights=1 / df2$rows)
+
+## Try including
+df2$`Ambiguity/Model Uncertainty`[is.na(df2$`Ambiguity/Model Uncertainty`)] <- "0"
+df2$`Carbon Cycle`[is.na(df2$`Carbon Cycle`)] <- "0"
+df2$`Climate Model`[is.na(df2$`Climate Model`)] <- "0"
+df2$`Tipping Points`[is.na(df2$`Tipping Points`)] <- "0"
+df2$`Epstein-Zin`[is.na(df2$`Epstein-Zin`)] <- "0"
+df2$`Inequality Aversion`[is.na(df2$`Inequality Aversion`)] <- "0"
+df2$`Learning`[is.na(df2$`Learning`)] <- "0"
+df2$`Non-Substitutable Goods`[is.na(df2$`Non-Substitutable Goods`)] <- "0"
+df2$`Persistent / Growth Damages`[is.na(df2$`Persistent / Growth Damages`)] <- "0"
+
+mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Non-Substitutable Goods` + `Persistent / Growth Damages`, data=df2, weights=1 / df2$rows)
+
 
 ## Predict into the future
 projdf <- tibble(Year=rep(2000:2100, 3), `SCC Year`=rep(c(2020, 2050, 2100), each=101))
