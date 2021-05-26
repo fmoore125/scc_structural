@@ -131,7 +131,7 @@ for (ii in which(!is.na(dat$PRTP))) {
     }
     
     if (is.na(dat$IES[ii])) {
-        dat$effective.discount.rate[ii] <- dat$PRTP[ii] + dat$IES[ii] * growthrate
+        dat$effective.discount.rate[ii] <- dat$PRTP[ii] + growthrate / dat$IES[ii]
     } else {
         dat$effective.discount.rate[ii] <- dat$PRTP[ii] + dat$EMUC[ii] * growthrate
     }
