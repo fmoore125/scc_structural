@@ -72,8 +72,13 @@ scenarios.second[['Stabilization']] <- scenarios.best[['SSP1']]
 
 ## Record DICE average growth rates
 
-scenarios.best[['Baseline:DICE-1992']] <- log(22272 / 11293) / (2100 - 2015)
-scenarios.best[['Baseline:DICE-2016R']] <- log(73367 / 14183) / (2100 - 2015)
+scenarios.best[['Baseline:DICE1992']] <- (22272 / 11293) ** (1 / (2100 - 2015)) - 1
+scenarios.best[['Baseline:DICE2016R']] <- (73367 / 14183) ** (1 / (2100 - 2015)) - 1
+
+for (dicemodel in c('DICE1994', 'DICE1998', 'DICE1999'))
+    scenarios.second[[paste0('Baseline:', dicemodel)]] <- scenarios.best[['Baseline:DICE1992']]
+for (dicemodel in c('DICE2007', 'DICE2010', 'DICE2013', 'DICE2016R2'))
+    scenarios.second[[paste0('Baseline:', dicemodel)]] <- scenarios.best[['Baseline:DICE2016R']]
 
 ## Construct effective discount rate
 
@@ -93,12 +98,14 @@ dat$effective.discount.rate <- dat$`Constant Discount Rate (%)` / 100
 for (ii in which(!is.na(dat$PRTP))) {
     scenario <- dat$`Scenario (e.g. Optimal, BAU)`[ii]
     scendata <- NULL
+
+    ## First-best options
     if (scenario %in% names(scenarios.best)) {
         scendata <- scenarios.best[[scenario]]
     }
     ## Model:Scenario entries
     if (paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.best)) {
-        scendata <- scenarios.best[[paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':')]]
+       scendata <- scenarios.best[[paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':')]]
     }
     if (paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.best)) {
         scendata <- scenarios.best[[paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':')]]
@@ -108,9 +115,18 @@ for (ii in which(!is.na(dat$PRTP))) {
         scendata <- scenarios.best[[found]]
         dat$discount.problems[ii] <- "Ambiguous"
     }
+
+    ### Second-best options
     if (scenario %in% names(scenarios.second)) {
         scendata <- scenarios.second[[scenario]]
         dat$discount.problems[ii] <- "Second-best"
+    }
+    ## Model:Scenario entries
+    if (paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.second)) {
+        scendata <- scenarios.second[[paste(dat$`Base IAM (if applicable)`[ii], scenario, sep=':')]]
+    }
+    if (paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':') %in% names(scenarios.second)) {
+        scendata <- scenarios.second[[paste(dat$`IAM Calibrated To (if applicable)`[ii], scenario, sep=':')]]
     }
     if (sum(sapply(names(scenarios.second), function(known) length(grep(known, scenario)))) > 0) {
         found <- names(scenarios.second)[sapply(names(scenarios.second), function(known) length(grep(known, scenario))) > 0]
@@ -130,7 +146,7 @@ for (ii in which(!is.na(dat$PRTP))) {
         growthrate <- scendata
     }
     
-    if (is.na(dat$IES[ii])) {
+    if (!is.na(dat$IES[ii])) {
         dat$effective.discount.rate[ii] <- dat$PRTP[ii] + growthrate / dat$IES[ii]
     } else {
         dat$effective.discount.rate[ii] <- dat$PRTP[ii] + dat$EMUC[ii] * growthrate
