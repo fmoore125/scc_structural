@@ -1,5 +1,13 @@
 ## setwd("~/research/scciams/scc_structural")
 
+## TODOs:
+## From Fran:
+## 
+##  - Get DICE growth rates for more model versions
+##  - Get some average PAGE and FUND growth rates too - I think these are exogenous right, so we should just be able to pull from model documentation?
+## 
+## Match DICE models, PAGE and FUND and for any remainders using Ramsey (not too many I think?) match to a reasonable SSP scenario
+
 library(readxl)
 library(dplyr)
 library(ggplot2)
@@ -18,7 +26,7 @@ df2$log.scc.2020usd[!is.finite(df2$log.scc.2020usd)] <- NA
 
 ## Basic log model
 
-mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year`, data=df2, weights=1 / df2$rows)
+mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + effective.discount.rate.percent, data=df2, weights=1 / df2$rows)
 
 ## Try including
 df2$`Ambiguity/Model Uncertainty`[is.na(df2$`Ambiguity/Model Uncertainty`)] <- "0"
@@ -31,8 +39,10 @@ df2$`Learning`[is.na(df2$`Learning`)] <- "0"
 df2$`Non-Substitutable Goods`[is.na(df2$`Non-Substitutable Goods`)] <- "0"
 df2$`Persistent / Growth Damages`[is.na(df2$`Persistent / Growth Damages`)] <- "0"
 
-mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Non-Substitutable Goods` + `Persistent / Growth Damages`, data=df2, weights=1 / df2$rows)
+mod2 <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + effective.discount.rate.percent + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Non-Substitutable Goods` + `Persistent / Growth Damages`, data=df2, weights=1 / df2$rows)
 
+library(stargazer)
+stargazer(list(mod, mod2), single.row=T)
 
 ## Predict into the future
 projdf <- tibble(Year=rep(2000:2100, 3), `SCC Year`=rep(c(2020, 2050, 2100), each=101))
