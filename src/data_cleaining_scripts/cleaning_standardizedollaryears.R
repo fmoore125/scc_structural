@@ -7,29 +7,12 @@ library(tidyverse)
 #dat=as.data.frame(read_excel("data/data_collection/SCC Meta-Analysis Data Template_Revised.xlsx",sheet="Data Entry"))
 #colnames(dat)=dat[2,];dat=dat[-c(1:2),]
 
-#convert values in Euros to dollars
-eurovals=c(grep("EU",dat$`Central Value ($ per ton CO2)`),grep("EU",dat$`Reported Base Model SCC (if applicable)`))
-exchange=read.csv("data/exchangerates.csv")
-
-#find columns that need to be transformed
-distcols=which(names(dat) == 'Min'):which(names(dat) == 'Max')
-relcols=c(which(colnames(dat)%in%c("Central Value ($ per ton CO2)","Reported Base Model SCC (if applicable)")),distcols)
-
-for(j in eurovals){
-  year=as.numeric(dat$Year)[j]
-  rate=exchange$EurotoDol[which(exchange$Year==year)]
-  dat[j,relcols]=substr(dat[j,relcols],4,5)
-  dat[j,relcols]=as.numeric(dat[j,relcols])*rate
-}
-
 #convert columns to numerics
 dat$`SCC Dollar Year`=as.numeric(dat$`SCC Dollar Year`)
 dat$Year=as.numeric(dat$Year)
 dat$`Central Value ($ per ton CO2)`=as.numeric(dat$`Central Value ($ per ton CO2)`)
 dat$`Reported Base Model SCC (if applicable)`=as.numeric(dat$`Reported Base Model SCC (if applicable)`)
 for(i in distcols) dat[,i]=as.numeric(dat[,i])
-
-#run modelnames cleaningscript (cleaning_modelnames.R) to standardize model names
 
 #for entries with missing dollar years try and infer based on calibration model where available
 lookup=read.csv("data/model_dollaryear_lookup.csv") #matching of models to dollar year based on other data entered in spreadsheet
