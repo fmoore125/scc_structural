@@ -17,7 +17,7 @@ all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
 
 #start by generating distributions for each row
 dists=list()
-for (ii in 1:nrow(dat)) {
+for (ii in 1217:nrow(dat)) {
   print(ii)
   all.as <- t(dat[ii, all.as.cols])
   qs <- all.qs[!is.na(all.as)]
@@ -34,7 +34,7 @@ papers=unique(dat$ID_number)
 
 #set both to false for unweighted distribution, set one to false and the other to true for 
 weighting_coauthors=FALSE
-weighting_citations=TRUE
+weighting_citations=FALSE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -44,10 +44,11 @@ for(i in 1:nsamp){
   
   if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
   if(weighting_coauthors==TRUE&weighting_citations==FALSE) paper=sample(coauthorweights$ID_number,1,prob=coauthorweights$prob) #weigthing is inversely proportional to degree of shared authorship
-  if(weighting_coauthors==FALSE&weighting_citations==TRUE) paper=sample(citationweights$ID_number,1,prob=citationweights$prob) #weigthing is inversely proportional to degree of shared authorship
-    
+  if(weighting_coauthors==FALSE&weighting_citations==TRUE) paper=sample(citationweights$ID_number,1,prob=citationweights$prob) #weigthing is proportional to citations
+  
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
+  if(paper==2883) rows=rows[-which(rows%in%c(1211,1216))] #remove two problematic rows temporarily
   row=ifelse(length(rows)==1,rows,sample(rows,1))
 
   draw=sample(dists[[row]],1)
