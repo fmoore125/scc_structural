@@ -12,6 +12,7 @@ dat$`SCC Dollar Year`=as.numeric(dat$`SCC Dollar Year`)
 dat$Year=as.numeric(dat$Year)
 dat$`Central Value ($ per ton CO2)`=as.numeric(dat$`Central Value ($ per ton CO2)`)
 dat$`Reported Base Model SCC (if applicable)`=as.numeric(dat$`Reported Base Model SCC (if applicable)`)
+distcols=which(colnames(dat)=="Min"):which(colnames(dat)=="Max")
 for(i in distcols) dat[,i]=as.numeric(dat[,i])
 
 #for entries with missing dollar years try and infer based on calibration model where available
