@@ -365,7 +365,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
                 mu.q <- mean(qs[qs > qs[which.max(sqrerrs)]])
             }
         }
-        new.sigma <- abs(as[which.max(sqrerrs)] - new.mu) / (qnorm(abs(qs[which.max(sqrerrs)] - mu.q) + .5))
+        new.sigma <- abs(as[which.max(sqrerrs)] - new.mu) / (abs(qnorm(abs(qs[which.max(sqrerrs)] - mu.q))) + .5)
 
         ## Fit the distribution
         result <- optim(.5, function(rescale) {
