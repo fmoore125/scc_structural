@@ -6,5 +6,5 @@ colnames(dat)=dat[2,];dat=dat[-c(1:2),]
 
 source("src/data_cleaining_scripts/cleaning_modelnames.R")
 source("src/data_cleaining_scripts/cleaning_standardizedollaryears.R")
+source("src/data_cleaining_scripts/cleaning_scenarios.R")
 source("src/data_cleaining_scripts/cleaning_discounting.R")
-
