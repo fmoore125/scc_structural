@@ -17,7 +17,7 @@ all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
 
 #start by generating distributions for each row
 dists=list()
-for (ii in 1217:nrow(dat)) {
+for (ii in 1:nrow(dat)) {
   print(ii)
   all.as <- t(dat[ii, all.as.cols])
   qs <- all.qs[!is.na(all.as)]
@@ -29,17 +29,18 @@ for (ii in 1217:nrow(dat)) {
   
   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 }
-dat$ID_number=as.numeric(dat$ID_number)
+dat$ID_number=as.integer(dat$ID_number)
 papers=unique(dat$ID_number)
 
 #set both to false for unweighted distribution, set one to false and the other to true for 
 weighting_coauthors=FALSE
-weighting_citations=FALSE
+weighting_citations=TRUE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
 
 for(i in 1:nsamp){
+  if(i%in% c(1211,1216)) next
   if(i%%10000==0) print(i)
   
   if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
@@ -91,7 +92,7 @@ a
 
 #plot of structural parameters
 
-struc=dat%>%select('Carbon Cycle':'Learning')%>% #note- this is dropping two of the strucutral columns that have very few rows in them
+struc=dat%>%select('Carbon Cycle':'Learning')%>% #note- this is dropping one of the strucutral columns that have very few rows in them
   replace(is.na(.),"No") %>%
   replace(.=="1.0","Yes")
 colnames(struc)[which(colnames(struc)=="Tipping Points")]="Climate Tipping Points"
@@ -123,6 +124,8 @@ meanchange=merge(meanchange,bibs)
 meanchange=meanchange%>%arrange(desc(abs(change)))
 write.csv(meanchange,file="outputs/meanleverage.csv")
 
+
+
 ###----compare distributions with and without co-author weighting ---------------
 
 dist=fread(file="outputs/distribution.csv")
@@ -131,5 +134,11 @@ dist_weighted_citations=fread(file="outputs/distribution_citationweighted.csv")
 
 #compare quantiles
 breaks=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
-quantiles=data.frame(quantilesplits=breaks,unweighted=quantile(dist$draw,breaks),coauthorweights=quantile(dist_weighted$draw,breaks),citationweights=quantile(dist_weighted_citations$draw,breaks))
+quantiles=data.frame(quantilesplits=breaks,unweighted=quantile(dist$draw,breaks),coauthorweights=quantile(dist_weighted$draw,breaks,na.rm=T),citationweights=quantile(dist_weighted_citations$draw,breaks,na.rm=T))
 write.csv(quantiles,file="outputs/quantiles_differentweightings.csv")
+
+###--------discount rate over time ----------------
+
+a=ggplot(dat%>%group_by(ID_number)%>%summarise(Year=Year[1],discountrate=mean(discountrate,na.rm=T)),aes(x=Year,y=discountrate))+geom_point()+geom_smooth(method="lm")
+a=a+theme_bw()+labs(x="Publication Year",y="Discount Rate")
+a
