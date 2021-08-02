@@ -33,4 +33,18 @@ dat$`Socio-Economic Scenario`=fct_recode(dat$`Socio-Economic Scenario`,DICE1994=
 levels(dat$`Base IAM (if applicable)`)[levels(dat$`Base IAM (if applicable)`)=='n/a'] <- NA
 levels(dat$`IAM Calibrated To (if applicable)`)[levels(dat$`IAM Calibrated To (if applicable)`)=='n/a'] <- NA
 
+clean.modelnames <- function(names) {
+    oldw <- getOption("warn")
+    options(warn=-1)
 
+    names <- str_replace_all(names, fixed(" "), "")
+    names <- str_replace_all(names, fixed("-"), "")
+    names <- as.factor(names)
+    names <- fct_collapse(names, FUNDIAWG=c("FUNDIAWG","IAWGFUND"), PAGE2009=c("PAGE2009","PAGE09"))
+    names <- fct_recode(names, DICE1994="DICE94", DICE1998="DICE98", DICE1999="DICE99")
+    levels(names)[levels(names)=='n/a'] <- NA
+
+    options(warn=oldw)
+
+    names
+}
