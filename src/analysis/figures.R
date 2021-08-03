@@ -102,8 +102,42 @@ referencedensity=referencedensity[,c(7,1:6)]
 diststrucdensities$type="Changed";referencedensity$type="Reference"
 diststrucdensities=dplyr::bind_rows(diststrucdensities,referencedensity)
 
+diststrucdensities$StructuralChange=ordered(diststrucdensities$StructuralChange,levels=rev(c("Carbon Cycle","Climate Model" , "Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning" ,"Ambiguity/Model Uncertainty")))
+
+#add number of papers and number of observations
+diststruc$paper=dat$ID_number[diststruc$row]
+papers=diststruc%>%
+  group_by(StructuralChange)%>%
+  filter(Presence=="Yes")%>%
+  dplyr::summarise(npapers=length(unique(paper)),n=length(unique(row)))
+
 a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=type))+geom_density_ridges(stat = "identity",scale=0.95,lwd=1)
 a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18))+labs(x="Log SCC (Log $ per ton CO2)",y="",fill="")
 a=a+scale_x_continuous(limits=c(0,10))+scale_fill_manual(values=c("steelblue4",NA))
-x11()
+a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=8,nudge_y=0.5)
 a
+
+#"balance table" for interpreting structural scc distributions
+
+rows=diststruc%>%
+  group_by(StructuralChange)%>%
+  filter(Presence=="Yes")%>%
+  dplyr::summarise(rows=unique(row))
+
+for(i in 1:length(changes)){
+  relrows=rows%>%filter(StructuralChange==changes[i])%>%select(rows)
+  relrows=as.numeric(relrows$rows)
+  
+  temp=dat[relrows,]
+  summary=c(round(mean(as.numeric(temp$`SCC Year`,na.rm=T))),round(sd(as.numeric(temp$`SCC Year`,na.rm=T)),1),round(mean(temp$discountrate,na.rm=T),2),round(sd(temp$discountrate,na.rm=T),2))
+  
+  if(i==1) balance=summary; if(i>1) balance=rbind(balance,summary)
+}
+temp=dat[reference,]
+summary_ref=c(round(mean(as.numeric(temp$`SCC Year`),na.rm=T)),round(sd(as.numeric(temp$`SCC Year`),na.rm=T),1),round(mean(temp$discountrate,na.rm=T),2),round(sd(temp$discountrate,na.rm=T),2))
+balance=rbind(balance,summary_ref)
+balance=as.data.frame(balance);balance$StructuralChange=c(changes,"Reference")
+colnames(balance)[1:4]=c("SCC Year","SCC Year SD","Discount Rate","Discount Rate SD");rownames(balance)=1:(length(changes)+1)
+write.csv(balance,"outputs/distribution_balancetable.csv")
+
+#reference distribution
