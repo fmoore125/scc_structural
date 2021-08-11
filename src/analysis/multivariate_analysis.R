@@ -1,5 +1,6 @@
 library(data.table)
-library(randomForest)
+library(DALEX)
+library(ranger)
 
 dist=fread(file="outputs/distribution.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -40,5 +41,18 @@ distreg=distreg[complete.cases(distreg),]
 #simplest linear regression to start
 mod=lm(I(log(draw))~.,data=distreg[which(distreg$draw>0),-2])
 
-rfmod=randomForest(x=distreg[which(distreg$draw>0),3:33],y=log(distreg$draw[which(distreg$draw>0)]))
+#downsample distribution for random forest
+distrf=distreg[which(distreg$draw>0),]
+samp=1e5
+distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
+distrf$y=log(distrf$draw)
+distrf=as.data.frame(distrf)
+
+distrf=distrf[,-which(colnames(distrf)%in%c("dicemodel","fundmodel","pagemodel"))]
+
+rfmod=ranger(num.trees=100,min.node.size=500,max.depth=10,y=distrf$y,x=distrf[,-c(1:2,31)],verbose=TRUE,importance="permutation")
+
+rfmod_explained=explain(rfmod,data=distrf[,-c(1:2,34)],y=distrf$y)
+rfmod_diag=model_diagnostics(rfmod_explained)
+rfmod_mod=model_parts(rfmod_explained)
 
