@@ -35,13 +35,13 @@ calc.scc <- function(dmgfunc, emitdf, year0, gdp0, discountrate) {
 }
 
 fund.3.8.xy <- list(x=c(0.3910223144784639, 1.032304099636741, 2.3195381421899324, 3.2903476907109495, 4.518681888946549, 5.677088738972496, 7.761805915931499),
-                    y=c(-0.44337750120701674, -0.5218335926184218, -0.04707365484684298, 0.6980580440963468, 2.005659567619763, 3.5884609194785684, 7.331017649267743))
+                    y=c(-0.44337750120701674, -0.5218335926184218, -0.04707365484684298, 0.6980580440963468, 2.005659567619763, 3.5884609194785684, 7.331017649267743) / 100)
 
 dice.2010.xy <- list(x=c(0.3901141670991178, 1.0132330046704723, 2.22106901920083, 3.190062272963155, 4.372340425531915, 5.748313440581214, 7.753373118837571),
-                     y=c(0.301351858805858, 0.6594335067861166, 1.7199989270961857, 2.9660425942814226, 4.888418003326001, 7.551901722010621, 12.27415374711657))
+                     y=c(0.301351858805858, 0.6594335067861166, 1.7199989270961857, 2.9660425942814226, 4.888418003326001, 7.551901722010621, 12.27415374711657) / 100)
 
 page.09.xy <- list(x=c(0.39244940321743643, 1.0132330046704723, 2.232615464452517, 3.190062272963155, 4.3816813700051895, 5.727036844836533, 7.775428126621692),
-                   y=c(0.4272839439944209, 0.6594335067861166, 1.6994796416501259, 2.9660425942814226, 5.919210342792768, 9.638431414623678, 15.789791320208142))
+                   y=c(0.4272839439944209, 0.6594335067861166, 1.6994796416501259, 2.9660425942814226, 5.919210342792768, 9.638431414623678, 15.789791320208142) / 100)
 
 dice.2007 <- function(T) 0.0023888 * T^2
 fund.3.5 <- function(T) -0.007457*T + 0.002685*T^2 - 0.000100*T^3 + 0.000001*T^4
@@ -58,8 +58,11 @@ hardcodeddfs <- list("DICE-2007"=dice.2007, "DICE 2007"=dice.2007, "DICE2007"=di
                      "PAGE2009"=page.09,
                      "FUND 3.10"=fund.3.8, "FUND 3.6"=fund.3.5, "FUND 3.9"=fund.3.8, "FUND"=fund.3.8,
                      "FUND 3.7"=fund.3.8, "FUND 3.5"=fund.3.5, "FUND 3.4"=fund.3.5,
-                     "Weitzman"=function(T) 0.0023888 * T^2 + 0.0000051 * T^6.754,
-                     "HowardSterner"=function(T) 0.01145 * T^2, "HowardSterner (0.007438*T^2)"=function(T) 0.007438 * T^2)
+                     "Weitzman"=function(T) 1 - 1 / (1 + 0.0023888 * T^2 + 0.0000051 * T^6.754),
+                     "HowardSterner"=function(T) .00556 * T^1.88,
+                     "HowardSterner (0.007438*T^2)"=function(T) 0.007438 * T^2,
+                     "DietzStern"=function(T) 1 - 1 / (1 + 0.0023888 * T^2 + 8.19e-5 * T^6.754))
+
 hardcodeddfs.source <- list("DICE-2007"="DICE", "DICE 2007"="DICE", "DICE2007"="DICE",
                             "DICE2010"="DICE", "DICE 2010"="DICE",
                             "DICE-2013R"="DICE", "DICE 2013R"="DICE", "DICE2013"="DICE", "DICE 2013"="DICE",
@@ -69,11 +72,8 @@ hardcodeddfs.source <- list("DICE-2007"="DICE", "DICE 2007"="DICE", "DICE2007"="
                             "FUND 3.10"="FUND", "FUND 3.6"="FUND", "FUND 3.9"="FUND", "FUND"="FUND",
                             "FUND 3.7"="FUND", "FUND 3.5"="FUND", "FUND 3.4"="FUND",
                             "Weitzman"="Weitzman",
-                            "HowardSterner"="HowardSterner", "HowardSterner (0.007438*T^2)"="HowardSterner")
-
-## QUESTIONS:
-## HowardSterner is with catstrophic and/or with productivity?
-## TODO: "DietzStern"
+                            "HowardSterner"="HowardSterner", "HowardSterner (0.007438*T^2)"="HowardSterner",
+                            "DietzStern"="DietzStern")
 
 simpleenv <- new.env(parent=baseenv())
 assign("T", 1, envir=simpleenv)
@@ -81,11 +81,9 @@ assign("T", 1, envir=simpleenv)
 unknowns <- c()
 evaleddfs <- list()
 for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`)) {
-    if (dmgfunc %in% names(hardcodedfs)) {
-        dmg <- hardcodedfs[[dmgfunc]](1)
-    } else {
+    if (!(dmgfunc %in% names(hardcodeddfs))) {
         origdmgfunc <- dmgfunc
-        dmgfunc <- gsub("−", "-", dmgfunc)
+        dmgfunc <- gsub("–", "-", gsub("−", "-", dmgfunc))
 
         dmg <- tryCatch({
             eval(str2lang(dmgfunc), simpleenv)
@@ -117,11 +115,14 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
     }
 }
 
+plotTT <- seq(0, 8, length.out=100)
+
 dat$scc.synth <- NA
 dat$scc.source <- NA
+plotdfs <- data.frame()
 for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`)) {
     founddf <- NULL
-    if (dmgfunc %in% names(hardcodedfs)) {
+    if (dmgfunc %in% names(hardcodeddfs)) {
         founddf <- hardcodeddfs[[dmgfunc]]
         scc.source <- hardcodeddfs.source[[dmgfunc]]
     } else if (dmgfunc %in% names(evaleddfs)) {
@@ -130,6 +131,8 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
     }
 
     if (!is.null(founddf)) {
+        added.by <- paste(unique(dat$`Added By`[!is.na(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`) & dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc]), collapse=', ')
+        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=sapply(plotTT, founddf), dmgfunc, scc.source, added.by))
         dmg <- calc.scc(founddf, emitdf, year0, gdp0, discountrate)
         dat$scc.synth[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- dmg
         dat$scc.source[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- scc.source
@@ -138,11 +141,29 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
 
 library(ggplot2)
 
-ggplot(dat, aes(scc.synth, `Central Value ($ per ton CO2)`)) +
+ggplot(plotdfs, aes(T, dmg, group=dmgfunc, colour=scc.source)) +
+    geom_line() +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    scale_y_continuous(labels=scales::percent) +
+    scale_colour_manual(name=NULL, breaks=c('FUND', 'DICE', 'DICE+', 'PAGE', 'HowardSterner', 'Weitzman', 'DietzStern', 'Explicit'),
+                        values=c('#1b9e77','#e6ab02','#a6761d','#d95f02','#7570b3','#e7298a','#66a61e', '#808080')) +
+xlab(NULL) + ylab("Consumption damages")
+
+ggplot(subset(plotdfs, scc.source == 'Explicit'), aes(T, dmg, group=dmgfunc, colour=added.by)) +
+    geom_line() +
+    coord_cartesian(ylim=c(-.1, 1)) +
+    scale_y_continuous(labels=scales::percent) +
+    scale_colour_manual(name="Added By", values=c('#ffff33', '#4daf4a', '#377eb8', '#e41a1c','#984ea3','#ff7f00')) +
+xlab(NULL) + ylab("Consumption damages")
+
+subset(plotdfs, scc.source == 'Explicit' & added.by == 'James' & T == 8)
+
+ggplot(subset(dat, scc.synth > .01 & `Central Value ($ per ton CO2)` > .01), aes(scc.synth, `Central Value ($ per ton CO2)`)) +
     geom_point(aes(colour=scc.source)) +
     geom_smooth(method='lm') +
     geom_abline(slope=1) +
-    scale_x_log10() + scale_y_log10() + theme_bw() + xlab("Synthetic SCC") +
+    scale_x_log10() + scale_y_log10() +
+    theme_bw() + xlab("Synthetic SCC") +
     scale_colour_discrete(name="Damage function")
 
 dat$log.scc.2020usd <- log(dat$`Central Value ($ per ton CO2)`)
@@ -151,5 +172,10 @@ dat$log.scc.2020usd[!is.finite(dat$log.scc.2020usd)] <- NA
 dat$log.scc.synth <- log(dat$scc.synth)
 dat$`SCC Year` <- as.numeric(dat$`SCC Year`)
 
-mod <- lm(log.scc.2020usd ~ `SCC Year` + log.scc.synth + discountrate, data=dat)
-mod <- lm(log.scc.2020usd ~ `SCC Year` + scc.source + log.scc.synth + discountrate, data=dat)
+dat2 <- subset(dat, scc.synth > .01)
+dat2$temp.2100.known <- ifelse(is.na(dat2$temp.2100), 'NO', 'YES')
+dat2$temp.2100[is.na(dat2$temp.2100)] <- 1
+
+summary(lm(log.scc.2020usd ~ log.scc.synth, data=dat2))
+summary(lm(log.scc.2020usd ~ `SCC Year` + discountrate + log.scc.synth, data=dat2))
+summary(lm(log.scc.2020usd ~ `SCC Year` + discountrate + log.scc.synth + temp.2100 : temp.2100.known, data=dat2))
