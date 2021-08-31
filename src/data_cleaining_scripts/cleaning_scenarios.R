@@ -36,7 +36,7 @@ get.emits <- function(emitscen) {
 ## get.emits("Wierdo")
 
 ## Model emissions to temperatures
-dice.2013 <- function(emit.gtc.peryr.by5) {
+dice.2013 <- function(emit.gtc.peryr.by5, lastyear=2305) {
     ## Parameters
     MAT <- 830.4
     MU <- 1527
@@ -63,17 +63,17 @@ dice.2013 <- function(emit.gtc.peryr.by5) {
 
     ## Modeling
     results <- data.frame(year=2010, dtemp.1900=TATM)
-    for (year in seq(2015, 2305, by=5)) {
+    for (year in seq(2015, lastyear, by=5)) {
         tt <- (year - 2010) / 5 + 1
         MAT_next <- MAT * b11 + MU * b21 + (emit.gtc.peryr.by5[tt - 1] * (5 / 3.666))
         MU_next <- MAT * b12 + MU * b22 + ML * b32
         ML_next <- ML * b33 + MU * b23
-        
+
         FORC <- fco22x * (log((MAT_next / eqmat)) / log(2)) + forcoth[tt]
 
         TATM_next <- TATM + c1 * ((FORC - (fco22x / t2xco2) * TATM) - (c3 * (TATM - TOCEAN)))
         TOCEAN_next <- TOCEAN + c4 * (TATM - TOCEAN)
-        
+
         MAT <- MAT_next
         MU <- MU_next
         ML <- ML_next
@@ -90,7 +90,7 @@ dice.2013 <- function(emit.gtc.peryr.by5) {
 ## dice.2013(approx(emitdf$year, emitdf$gtcemit, seq(2010, 2300, by=5))$y)
 
 ## Get direct temperatures or model emissions
-get.temps <- function(emitscen) {
+get.temps <- function(emitscen, lastyear=2300) {
     emitscen.asmodel <- as.character(clean.modelnames(emitscen))
     if (emitscen.asmodel %in% temptrajdf$Model) {
         row <- which(temptrajdf$Model == emitscen.asmodel)[1]
@@ -104,12 +104,24 @@ get.temps <- function(emitscen) {
     emitdf <- get.emits(emitscen)
     if (is.null(emitdf))
         return(NULL)
-    return(dice.2013(approx(emitdf$year, emitdf$gtcemit, seq(2010, 2300, by=5))$y))
+    return(dice.2013(approx(emitdf$year, emitdf$gtcemit, seq(2010, lastyear, by=5))$y, lastyear+5))
 }
 
 ## get.temps("RCP 8.5")
 ## get.temps("Weirdo")
 ## get.temps("DICE2013R")
+
+## Guess 2100 for every emissions scenario
+dat$temp.2100 <- NA
+for (emitscen in unique(dat$`Emissions Scenario`)) {
+    temps <- get.temps(emitscen, 2100)
+    if (!is.null(temps)) {
+        dt.2100 <- temps$dtemp.1900[temps$year == 2100]
+        if (length(dt.2100) == 0)
+            dt.2100 <- spline(temps$year, temps$dtemp.1900, method='natural', xout=2100)$y
+        dat$temp.2100[dat$`Emissions Scenario` == emitscen] <- dt.2100
+    }
+}
 
 if (F) {
     ## Check which scenarios we can't model yet
