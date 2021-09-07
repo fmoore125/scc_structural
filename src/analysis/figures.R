@@ -111,6 +111,8 @@ papers=diststruc%>%
   filter(Presence=="Yes")%>%
   dplyr::summarise(npapers=length(unique(paper)),n=length(unique(row)))
 
+diststrucdensities$type=as.factor(diststrucdensities$type)
+
 a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=type))+geom_density_ridges(stat = "identity",scale=0.95,lwd=1)
 a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18))+labs(x="Log SCC (Log $ per ton CO2)",y="",fill="")
 a=a+scale_x_continuous(limits=c(0,10))+scale_fill_manual(values=c("steelblue4",NA))
