@@ -124,8 +124,17 @@ meanchange=merge(meanchange,bibs)
 meanchange=meanchange%>%arrange(desc(abs(change)))
 write.csv(meanchange,file="outputs/meanleverage.csv")
 
+#make graph showing high-leverage papers
 
+mc=read.csv("outputs/meanleverage.csv")
+mc=mc[1:15,]
 
+mc$Short.Reference=ordered(mc$Short.Reference,levels=as.character(mc$Short.Reference))
+
+a=ggplot(mc,aes(y=change,x=Short.Reference,fill=Description))+geom_bar(stat="identity")
+a=a+theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+labs(x="",y="Change in Mean SCC After Dropping Paper ($)",fill="Paper Focus")
+a=a+scale_fill_manual(values=c("#335361","#4ec1a2","#c46692","#f57d51"))
+a
 ###----compare distributions with and without co-author weighting ---------------
 
 dist=fread(file="outputs/distribution.csv")
