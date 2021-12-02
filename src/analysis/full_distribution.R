@@ -151,3 +151,4 @@ write.csv(quantiles,file="outputs/quantiles_differentweightings.csv")
 a=ggplot(dat%>%group_by(ID_number)%>%summarise(Year=Year[1],discountrate=mean(discountrate,na.rm=T)),aes(x=Year,y=discountrate))+geom_point()+geom_smooth(method="lm")
 a=a+theme_bw()+labs(x="Publication Year",y="Discount Rate")
 a
+
