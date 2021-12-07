@@ -1,6 +1,9 @@
 library(ggplot2)
 library(data.table)
 library(ggridges)
+library(fixest)
+library(plyr)
+
 dist=fread(file="outputs/distribution.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted.csv")
@@ -113,11 +116,29 @@ papers=diststruc%>%
 
 diststrucdensities$type=as.factor(diststrucdensities$type)
 
-a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=type))+geom_density_ridges(stat = "identity",scale=0.95,lwd=1)
-a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18))+labs(x="Log SCC (Log $ per ton CO2)",y="",fill="")
-a=a+scale_x_continuous(limits=c(0,10))+scale_fill_manual(values=c("steelblue4",NA))
-a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=8,nudge_y=0.5)
+breaks_ln=c(0,2.5,5,7.5,10)
+a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=type))+geom_density_ridges(stat = "identity",scale=0.92,lwd=1)
+a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18))+labs(x="SCC (2020 $ per ton CO2)",y="",fill="")
+a=a+scale_x_continuous(limits=c(0,10),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4:5]),100)))+scale_fill_manual(values=c("steelblue4",NA))
+a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=6,nudge_y=0.35)
 a
+
+#calculate means
+means=diststrucdensities%>%
+  group_by(type,StructuralChange)%>%
+  dplyr::summarize(mean=exp(sum(logscc*density)/sum(density)))
+
+#calculate 90th percentile
+upper=diststruc%>%
+  group_by(StructuralChange)%>%
+  dplyr::filter(Presence=="Yes")%>%
+  dplyr::filter(draw>0)%>%
+  dplyr::summarize(upper75=exp(quantile(log(draw),0.75)))
+
+referenceupper=dist%>%
+  filter(row%in%reference&draw>0)%>%
+  summarize(upper75=exp(quantile(log(draw),0.75)))
+  
 
 #"balance table" for interpreting structural scc distributions
 
@@ -143,3 +164,11 @@ colnames(balance)[1:4]=c("SCC Year","SCC Year SD","Discount Rate","Discount Rate
 write.csv(balance,"outputs/distribution_balancetable.csv")
 
 #reference distribution
+
+
+
+###----------variance due to within paper vs between paper ------------
+dist$paper=as.factor(dat$ID_number[dist$row])
+mod=feols(I(log(draw))~1|paper,data=dist[-which(dist$draw<=0),])
+mod2=feols(I(log(draw))~1|row,data=dist[-which(dist$draw<=0),])
+r2(mod);r2(mod2)
