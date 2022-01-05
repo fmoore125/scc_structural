@@ -17,8 +17,6 @@ source("src/analysis/all_scc_lib.R")
 allcols <- names(dat)[c(1, 8, 10, 12:16, 18:24, 26:36)]
 
 df <- get.all.scc(dat)
-
-names(df)[37] <- "Alternative ethical approaches"
 allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
 
 library(lfe)
@@ -28,22 +26,7 @@ summary(felm(scc ~ modified | basecode, data=df))
 df$log.scc <- log(df$scc)
 df$log.scc[!is.finite(df$log.scc)] <- NA
 
-df$`IAM Calibrated To (if applicable)`[is.na(df$`IAM Calibrated To (if applicable)`)] <- "None"
-df$`Backstop Price?`[is.na(df$`Backstop Price?`)] <- "0"
-df$`Other Market Failure?`[is.na(df$`Other Market Failure?`)] <- "0"
-df$`Other Market Failure?`[df$`Other Market Failure?` != "0"] <- "1.0"
-df$`Market Only Damages`[is.na(df$`Market Only Damages`)] <- "0"
-df$`Carbon Cycle`[is.na(df$`Carbon Cycle`)] <- "0"
-df$`Climate Model`[is.na(df$`Climate Model`)] <- "0"
-df$`Tipping Points`[is.na(df$`Tipping Points`)] <- "0"
-df$`Tipping Points2`[is.na(df$`Tipping Points2`)] <- "0"
-df$`Persistent / Growth Damages`[is.na(df$`Persistent / Growth Damages`)] <- "0"
-df$`Epstein-Zin`[is.na(df$`Epstein-Zin`)] <- "0"
-df$`Ambiguity/Model Uncertainty`[is.na(df$`Ambiguity/Model Uncertainty`)] <- "0"
-df$`Limitedly-Substitutable Goods`[is.na(df$`Limitedly-Substitutable Goods`)] <- "0"
-df$`Inequality Aversion`[is.na(df$`Inequality Aversion`)] <- "0"
-df$`Learning`[is.na(df$`Learning`)] <- "0"
-df$`Alternative ethical approaches`[is.na(df$`Alternative ethical approaches`)] <- "0"
+df <- multivar.prep(df)
 
 form <- as.formula(paste0("scc ~ `", paste(allcols[!(allcols %in% basemodelcols)], collapse="` + `"), "` + modified | basecode"))
 summary(felm(form, data=df))
