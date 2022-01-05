@@ -35,3 +35,26 @@ get.all.scc <- function(dat) {
 
     df
 }
+
+multivar.prep <- function(df) {
+    names(df)[grep("Alternative ethical approaches", names(df))] <- "Alternative ethical approaches"
+
+    df$`IAM Calibrated To (if applicable)`[is.na(df$`IAM Calibrated To (if applicable)`)] <- "None"
+    df$`Backstop Price?`[is.na(df$`Backstop Price?`)] <- "0"
+    df$`Other Market Failure?`[is.na(df$`Other Market Failure?`)] <- "0"
+    df$`Other Market Failure?`[df$`Other Market Failure?` != "0"] <- "1.0"
+    df$`Market Only Damages`[is.na(df$`Market Only Damages`)] <- "0"
+    df$`Carbon Cycle`[is.na(df$`Carbon Cycle`)] <- "0"
+    df$`Climate Model`[is.na(df$`Climate Model`)] <- "0"
+    df$`Tipping Points`[is.na(df$`Tipping Points`)] <- "0"
+    df$`Tipping Points2`[is.na(df$`Tipping Points2`)] <- "0"
+    df$`Persistent / Growth Damages`[is.na(df$`Persistent / Growth Damages`)] <- "0"
+    df$`Epstein-Zin`[is.na(df$`Epstein-Zin`)] <- "0"
+    df$`Ambiguity/Model Uncertainty`[is.na(df$`Ambiguity/Model Uncertainty`)] <- "0"
+    df$`Limitedly-Substitutable Goods`[is.na(df$`Limitedly-Substitutable Goods`)] <- "0"
+    df$`Inequality Aversion`[is.na(df$`Inequality Aversion`)] <- "0"
+    df$`Learning`[is.na(df$`Learning`)] <- "0"
+    df$`Alternative ethical approaches`[is.na(df$`Alternative ethical approaches`)] <- "0"
+
+    df
+}
