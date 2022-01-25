@@ -9,7 +9,6 @@ options("tidylog.display" = NULL)
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 
-variables
 M = dat %>% 
   select(`Carbon Cycle`:`Alternative ethical approaches (not Discounted Utilitarianism)`) %>% 
   as_tibble() %>% 
