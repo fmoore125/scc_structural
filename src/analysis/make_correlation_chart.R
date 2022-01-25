@@ -7,6 +7,7 @@ pacman::p_load(
 options("tidylog.display" = NULL)
 `%notin%` <- Negate(`%in%`)
 
+# runs data cleaning to generate main dataframe as `dat`
 source("src/data_cleaining_scripts/cleaning_master.R")
 
 # read in data for correlations
@@ -17,22 +18,6 @@ M <- dat %>%
   mutate(across(everything(), ~ as.numeric(.x))) %>%
   replace(is.na(.), 0) %>%
   cor()
-
-# function to do the corr chart
-cor.mtest <- function(mat, ...) {
-  mat <- as.matrix(mat)
-  n <- ncol(mat)
-  p.mat <- matrix(NA, n, n)
-  diag(p.mat) <- 0
-  for (i in 1:(n - 1)) {
-    for (j in (i + 1):n) {
-      tmp <- cor.test(mat[, i], mat[, j], ...)
-      p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
-    }
-  }
-  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
-  p.mat
-}
 
 # write the corr chart
 png("outputs/corr_chart.png", width = 10, height = 10, units = "in", res = 500)
