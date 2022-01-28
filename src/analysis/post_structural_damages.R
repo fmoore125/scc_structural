@@ -4,6 +4,9 @@ source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/all_scc_lib.R")
 
 df <- multivar.prep(dat)
+df$`SCC Year` <- as.numeric(as.character(df$`SCC Year`))
+year0 <- 1990
+cons0 <- 3972 # average global
 
 damagecols <- names(df)[c(1, 7:8, 12:13, 24:36)] # paper, model & damage func info, structural changes
 df$damagecode <- sapply(1:nrow(df), function(ii) paste(df[ii, damagecols], collapse=', '))
@@ -11,20 +14,34 @@ df$damagecode <- sapply(1:nrow(df), function(ii) paste(df[ii, damagecols], colla
 colabbr <- c('BP', 'OF', 'MO', 'CC', 'CM', 'TC', 'TD', 'PD', 'EZ', 'MU', 'LS', 'IA', 'Le', 'AE')
 
 structcols <- names(df)[c(12:13, 24, 26:36)] # paper, model & damage func info, structural changes
-df$structcode <- sapply(1:nrow(df), function(ii) paste(colabbr[df[ii, structcols] != 0], collapse=''))
+df$structcode <- sapply(1:nrow(df), function(ii) paste(colabbr[df[ii, structcols] != 0], collapse='-'))
 
 ## Calculate linear and quadratic predictors for each row
+fullscenarios <- paste(df$`Emissions Scenario`, df$`Socio-Economic Scenario`)
 df$dmg1 <- NA
 df$dmg2 <- NA
-for (emitscen in unique(df$`Emissions Scenario`)) {
-    temps <- get.temps(emitscen, 2200)
+for (fullscen in unique(fullscenarios)) {
+    temps <- get.temps(df$`Emissions Scenario`[fullscenarios == fullscen][1], 2200)
+    if (is.null(temps))
+        temps <- get.temps(df$`Socio-Economic Scenario`[fullscenarios == fullscen][1], 2200)
+
     if (!is.null(temps)) {
-        for (ii in which(df$`Emissions Scenario` == emitscen)) {
+        grows <- get.cons.growth.percap(as.character(df$`Socio-Economic Scenario`[fullscenarios == fullscen][1]))
+        if (is.null(grows))
+            next
+
+        allgrows <- spline(grows$year, grows$cons_growth_percap, method='natural', xout=year0:2200)$y
+        allcons <- cumprod(c(cons0, (1 + allgrows / 100)))
+
+        for (ii in which(fullscenarios == fullscen)) {
+            if (is.na(df$discountrate[ii]) || is.na(df$`SCC Year`[ii]))
+                next
             discountrate  <- df$discountrate[ii]
             years <- (as.numeric(df$`SCC Year`[ii])+1):2200
             discfactors <- (1 + discountrate / 100)^-(years - as.numeric(df$`SCC Year`[ii]))
-            df$dmg1[ii] <- sum(discfactors)
-            df$dmg2[ii] <- sum(2 * discfactors * spline(temps$year, temps$dtemp.1900, method='natural', xout=years)$y)
+            disccons <- discfactors * allcons[years - year0 + 1]
+            df$dmg1[ii] <- sum(disccons)
+            df$dmg2[ii] <- sum(2 * disccons * spline(temps$year, temps$dtemp.1900, method='natural', xout=years)$y)
         }
     }
 }
@@ -32,3 +49,49 @@ for (emitscen in unique(df$`Emissions Scenario`)) {
 summary(lm(`Central Value ($ per ton CO2)` ~ 0 + dmg1 + dmg2, data=df))
 summary(lm(`Central Value ($ per ton CO2)` ~ 0 + damagecode : dmg1 + damagecode : dmg2, data=df))
 summary(lm(`Central Value ($ per ton CO2)` ~ 0 + structcode : dmg1 + structcode : dmg2, data=df))
+
+mod <- lm(`Central Value ($ per ton CO2)` ~ 0 + structcode : dmg1 + structcode : dmg2, data=df)
+ses <- sqrt(diag(vcov(mod)))
+coeffs <- coef(mod)
+
+signif <- abs(coeffs / ses) > 1.64
+codes <- sapply(names(coeffs)[signif], function(str) substring(str, 11, nchar(str) - 5))
+validcodes <- names(table(codes))[table(codes) == 2]
+
+TT <- seq(0, 6, length.out=100)
+pdf <- data.frame()
+for (code in validcodes) {
+    alpha <- coeffs[paste0("structcode", code, ":dmg1")]
+    beta <- coeffs[paste0("structcode", code, ":dmg2")]
+    pdf <- rbind(pdf, data.frame(code, TT, dmg=alpha * TT + beta * TT^2))
+}
+
+library(ggplot2)
+ggplot(pdf, aes(TT, dmg, colour=code)) +
+    geom_line() + scale_x_continuous("Temperature change from 1990", expand=c(0, 0)) + theme_bw() +
+    scale_y_continuous("Damages (% GDP)", labels=scales::percent)
+
+library(quantreg)
+allowed <- names(table(df$structcode))[table(df$structcode) > 18] # below this get singular design matrix
+mod <- rq(`Central Value ($ per ton CO2)` ~ 0 + structcode : dmg1 + structcode : dmg2, data=df[df$structcode %in% allowed, ])
+coeffs <- coef(mod)
+signif <- sign(summary(mod, alpha=.2)$coefficients[, 2]) == sign(summary(mod, alpha=.2)$coefficients[, 3])
+codes <- sapply(names(coeffs)[signif], function(str) substring(str, 11, nchar(str) - 5))
+validcodes <- names(table(codes))[table(codes) == 2]
+
+TT <- seq(0, 6, length.out=100)
+pdf <- data.frame()
+for (code in validcodes) {
+    alpha <- coeffs[paste0("structcode", code, ":dmg1")]
+    beta <- coeffs[paste0("structcode", code, ":dmg2")]
+    pdf <- rbind(pdf, data.frame(code, TT, dmg=alpha * TT + beta * TT^2))
+}
+
+ggplot(pdf, aes(TT, dmg, colour=code)) +
+    geom_line() + scale_x_continuous("Temperature change from 1990", expand=c(0, 0)) + theme_bw() +
+    scale_y_continuous("Damages (% GDP)", labels=scales::percent)
+
+ggplot(pdf, aes(TT, dmg, colour=code)) +
+    coord_cartesian(ylim=c(0, .1)) +
+    geom_line() + scale_x_continuous("Temperature change from 1990", expand=c(0, 0)) + theme_bw() +
+    scale_y_continuous("Damages (% GDP)", labels=scales::percent)
