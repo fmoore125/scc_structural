@@ -15,71 +15,73 @@ dat$`IES` <- as.numeric(dat$`IES`)
 ## Prepare scenario data
 
 #read in data on consumption growth scenarios from different models etc
-scens=as.data.frame(read_excel("data/scenarios/consumption_temperature_trajectories.xlsx",sheet="Consumption Growth Rates"))
-colnames(scens)=scens[1,];scens=scens[-1,]
-scens=scens%>%pivot_longer(cols="2010":"2200",names_to="year",values_to="cons_growth_percap")
+scens <- as.data.frame(read_excel("data/scenarios/consumption_temperature_trajectories.xlsx",sheet="Consumption Growth Rates"))
+colnames(scens) <- scens[1,]
+scens <- scens[-1,]
+scens <- scens%>%pivot_longer(cols="2010":"2200",names_to="year",values_to="cons_growth_percap")
 scens$`Short Name for Merging`=as.factor(scens$`Short Name for Merging`)
-colnames(scens)[2]="shortname"
+colnames(scens)[2] <- "shortname"
 #interpolate values for each socio-economic scenario
-scens=scens%>%
+scens <- scens%>%
   group_by(Model)%>%
   tidyr::fill(cons_growth_percap,.direction="downup")%>%
   ungroup()%>%
   group_by(shortname,year)%>%
   dplyr::summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T)*100)
-scens$year=as.numeric(scens$year)
+scens$year <- as.numeric(scens$year)
 
-scensyears=scens%>%group_by(year)%>%summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T))
+scensyears <- scens%>%group_by(year)%>%summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T))
 
 ## Calculate average discount rates
 
 #find entries using endogenous discounting
-constant=which(is.finite(dat$`Constant Discount Rate (%)`))
+constant <- which(is.finite(dat$`Constant Discount Rate (%)`))
 
 ## Year for discount rate merging
 mround <- function(x,base){
   base*round(x/base)
 }
-dat$sccyearformerge=mround(as.numeric(dat$`SCC Year`),5)
-dat$sccyearformerge[which(dat$sccyearformerge<2010)]=2010 #match early years to most recent year available
+dat$sccyearformerge <- mround(as.numeric(dat$`SCC Year`),5)
+dat$sccyearformerge[which(dat$sccyearformerge<2010)] <- 2010 #match early years to most recent year available
 
 ## Version 1:
 
 ptm <- proc.time()
 
 #for ramsey discounting, add per-capita consumption growth rates based on socio-economic scenarios
-given=which(is.finite(as.numeric(as.character(dat$`Socio-Economic Scenario`))))
+given <- which(is.finite(as.numeric(as.character(dat$`Socio-Economic Scenario`))))
 
 #merge in by year and model
-dat=left_join(dat,scens,by=c("sccyearformerge"="year","Socio-Economic Scenario"="shortname"), suffix=c('.old', ''), keep=FALSE)
+dat <- left_join(dat,scens,by=c("sccyearformerge"="year","Socio-Economic Scenario"="shortname"), suffix=c('.old', ''), keep=FALSE)
 
 #for scc years greater than 2200, set consumption growth to average of 2200 scenarios
-dat$cons_growth_percap[which(dat$`SCC Year`>2200)]=mean(scens$cons_growth_percap[which(scens$year==2200)],na.rm=T)
+dat$cons_growth_percap[which(dat$`SCC Year`>2200)] <- mean(scens$cons_growth_percap[which(scens$year==2200)],na.rm=T)
 
 #deal with a couple weird cases manually
-slowa1b=which(dat$`Socio-Economic Scenario`=="A1B2%GDPgrowth");fasta1b=which(dat$`Socio-Economic Scenario`=="A1B+3%GDPgrowth")
-for(i in slowa1b) dat$cons_growth_percap[i]=scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]-2
-for(i in fasta1b) dat$cons_growth_percap[i]=scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]+3
+slowa1b <- which(dat$`Socio-Economic Scenario`=="A1B2%GDPgrowth")
+fasta1b=which(dat$`Socio-Economic Scenario`=="A1B+3%GDPgrowth")
+for(i in slowa1b) dat$cons_growth_percap[i] <- scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]-2
+for(i in fasta1b) dat$cons_growth_percap[i] <- scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]+3
 
 #fill in remaining with average consumption growth over all scenarios for that year
 for(i in 1:dim(dat)[1]){
   if(i %in% constant) next
   if(i %in% given) next
   if(!is.na(dat$cons_growth_percap[i])) next
-  dat$cons_growth_percap[i]=scensyears$cons_growth_percap[which(scensyears$year==dat$sccyearformerge[i])]
+  dat$cons_growth_percap[i] <- scensyears$cons_growth_percap[which(scensyears$year==dat$sccyearformerge[i])]
 }
 
 #generate discount rate column
-discount=rep(NA,dim(dat)[1])
-discount[constant]=dat$`Constant Discount Rate (%)`[constant]
+discount <- rep(NA,dim(dat)[1])
+discount[constant] <- dat$`Constant Discount Rate (%)`[constant]
 for(i in 1:length(discount)){
   if(!is.na(discount[i])) next
-  prtp=dat$PRTP[i]
-  emuc=ifelse(!is.na(dat$EMUC[i]),dat$EMUC[i],1/dat$IES[i])
-  discount[i]=ifelse(i%in%given,prtp+emuc*as.numeric(as.character(dat$`Socio-Economic Scenario`[i])),prtp+emuc*dat$cons_growth_percap[i])
+  prtp <- dat$PRTP[i]
+  emuc <- ifelse(!is.na(dat$EMUC[i]),dat$EMUC[i],1/dat$IES[i])
+  discount[i] <- ifelse(i%in%given,prtp+emuc*as.numeric(as.character(dat$`Socio-Economic Scenario`[i])),prtp+emuc*dat$cons_growth_percap[i])
 }
 
-dat$discountrate=discount #just 42 missing discount rate entries, mostly due to unreported PRTP
+dat$discountrate <- discount #just 42 missing discount rate entries, mostly due to unreported PRTP
 
 print("Version 1:")
 print(proc.time() - ptm)
@@ -119,7 +121,7 @@ get.cons.growth.percap <- function(scenario) {
 }
 
 dat$discountrate2 <- NA
-dat$discountrate2[constant]=dat$`Constant Discount Rate (%)`[constant]
+dat$discountrate2[constant] <- dat$`Constant Discount Rate (%)`[constant]
 
 emuc <- ifelse(!is.na(dat$EMUC), dat$EMUC, 1/dat$IES)
 
@@ -139,7 +141,7 @@ for (scenario in unique(dat$`Socio-Economic Scenario`)) {
 print("Version 2:")
 print(proc.time() - ptm)
 
-which((dat$discountrate != dat$discountrate2 & dat$`SCC Year` < 2200) | is.na(dat$discountrate) != is.na(dat$discountrate2))
+stopifnot(sum((dat$discountrate != dat$discountrate2 & dat$`SCC Year` < 2200) | is.na(dat$discountrate) != is.na(dat$discountrate2)) == 0)
 
 #
 # ## Develop scenarios list
