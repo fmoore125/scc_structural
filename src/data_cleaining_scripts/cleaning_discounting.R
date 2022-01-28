@@ -12,16 +12,19 @@ dat$`EMUC` <- as.numeric(dat$`EMUC`)
 dat$`RRA` <- as.numeric(dat$`RRA`)
 dat$`IES` <- as.numeric(dat$`IES`)
 
+# find entries using endogenous discounting
+constant <- which(is.finite(dat$`Constant Discount Rate (%)`))
+
 ## Prepare scenario data
 
-#read in data on consumption growth scenarios from different models etc
+# read in data on consumption growth scenarios from different models etc
 scens <- as.data.frame(read_excel("data/scenarios/consumption_temperature_trajectories.xlsx",sheet="Consumption Growth Rates"))
 colnames(scens) <- scens[1,]
 scens <- scens[-1,]
 scens <- scens%>%pivot_longer(cols="2010":"2200",names_to="year",values_to="cons_growth_percap")
 scens$`Short Name for Merging`=as.factor(scens$`Short Name for Merging`)
 colnames(scens)[2] <- "shortname"
-#interpolate values for each socio-economic scenario
+# interpolate values for each socio-economic scenario
 scens <- scens%>%
   group_by(Model)%>%
   tidyr::fill(cons_growth_percap,.direction="downup")%>%
@@ -34,9 +37,6 @@ scensyears <- scens%>%group_by(year)%>%summarise(cons_growth_percap=mean(cons_gr
 
 ## Calculate average discount rates
 
-#find entries using endogenous discounting
-constant <- which(is.finite(dat$`Constant Discount Rate (%)`))
-
 ## Year for discount rate merging
 mround <- function(x,base){
   base*round(x/base)
@@ -48,22 +48,22 @@ dat$sccyearformerge[which(dat$sccyearformerge<2010)] <- 2010 #match early years 
 
 ptm <- proc.time()
 
-#for ramsey discounting, add per-capita consumption growth rates based on socio-economic scenarios
+# for ramsey discounting, add per-capita consumption growth rates based on socio-economic scenarios
 given <- which(is.finite(as.numeric(as.character(dat$`Socio-Economic Scenario`))))
 
-#merge in by year and model
+# merge in by year and model
 dat <- left_join(dat,scens,by=c("sccyearformerge"="year","Socio-Economic Scenario"="shortname"), suffix=c('.old', ''), keep=FALSE)
 
-#for scc years greater than 2200, set consumption growth to average of 2200 scenarios
+# for scc years greater than 2200, set consumption growth to average of 2200 scenarios
 dat$cons_growth_percap[which(dat$`SCC Year`>2200)] <- mean(scens$cons_growth_percap[which(scens$year==2200)],na.rm=T)
 
-#deal with a couple weird cases manually
+# deal with a couple weird cases manually
 slowa1b <- which(dat$`Socio-Economic Scenario`=="A1B2%GDPgrowth")
 fasta1b=which(dat$`Socio-Economic Scenario`=="A1B+3%GDPgrowth")
 for(i in slowa1b) dat$cons_growth_percap[i] <- scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]-2
 for(i in fasta1b) dat$cons_growth_percap[i] <- scens$cons_growth_percap[which(scens$shortname=="A1"&scens$year==dat$sccyearformerge[i])]+3
 
-#fill in remaining with average consumption growth over all scenarios for that year
+# fill in remaining with average consumption growth over all scenarios for that year
 for(i in 1:dim(dat)[1]){
   if(i %in% constant) next
   if(i %in% given) next
@@ -71,7 +71,7 @@ for(i in 1:dim(dat)[1]){
   dat$cons_growth_percap[i] <- scensyears$cons_growth_percap[which(scensyears$year==dat$sccyearformerge[i])]
 }
 
-#generate discount rate column
+# generate discount rate column
 discount <- rep(NA,dim(dat)[1])
 discount[constant] <- dat$`Constant Discount Rate (%)`[constant]
 for(i in 1:length(discount)){
