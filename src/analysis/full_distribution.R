@@ -7,6 +7,8 @@ library(viridisLite)
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+set.seed(12345)
+
 coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
 coauthorweights$prob=coauthorweights$weight/sum(coauthorweights$weight)
 citationweights=read.csv(file="outputs/citations.csv")
@@ -34,7 +36,7 @@ papers=unique(dat$ID_number)
 
 #set both to false for unweighted distribution, set one to false and the other to true for 
 weighting_coauthors=FALSE
-weighting_citations=TRUE
+weighting_citations=FALSE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
