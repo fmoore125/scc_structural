@@ -100,10 +100,38 @@ a=ggplot(coefs%>%filter(!names%in%c("(Intercept)","SCC Year","SCC Year^2")),aes(
 a=a+labs(x="",y="Coefficient Value (Dependent Variable = Log SCC ($ per ton CO2))",col="Variable Type",pch="Model")
 a=a+coord_flip()+geom_hline(yintercept = 0)
 a
-#downsample distribution for random forest
+#####------------Random Forest Analysis ----------
+
+#TO DO: Need to actually resample from original dataset, not just down-sample distribution with equal paper weighting
+
+#define sample type
+#1. random sample - rand
+#2. draw each structural change with equal probability -struc
+#3. draw each two-way interaction of structural changes with equal probability - struc2
+
+type="struc" #possible values - rand, struc, struc2
+samp=1e6 #down-sample full 10e6 distribution to fit random forests
+
 distrf=distreg[which(distreg$draw>0),]
-samp=1e6
-distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
+
+#combine carbon-cycle and climate model into one structural change
+distrf$Earth_system_struc=ifelse(distrf$Carbon.Cycle_struc=="Yes","Yes",ifelse(distrf$Climate.Model_struc=="Yes","Yes","No"))
+#combine two tipping point structural changes into one
+distrf$Tipping_points_struc=ifelse(distrf$Tipping.Points_struc=="Yes","Yes",ifelse(distrf$Tipping.Points2_struc=="Yes","Yes","No"))
+
+if(type=="rand") distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
+if(type=="struc"){
+  struc=grep("_struc",colnames(distrf))[-c(1:4)] #eight structural changes, after combining two categories
+  #sample equally ove
+  
+  for(i in struc){
+    print(sum(distrf[,..i]=="Yes")/nrow(distrf))
+  }
+}
+
+
+
+
 distrf$y=log(distrf$draw)
 distrf=as.data.frame(distrf)
 
@@ -119,3 +147,6 @@ rfmod_diag=model_diagnostics(rfmod_explained)
 rfmod_mod=model_parts(rfmod_explained);plot(rfmod_mod)
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent / Growth Damages_struc")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate",k=3)
+
+
+#alternate down-sampling that 
