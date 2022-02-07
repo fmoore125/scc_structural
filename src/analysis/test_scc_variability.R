@@ -2,7 +2,7 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
   data.table, janitor, magrittr, fixest,
-  broom, tidyverse, tidylog, mddelsummary
+  broom, tidyverse, tidylog, modelsummary
 )
 options("tidylog.display" = NULL)
 `%notin%` <- Negate(`%in%`)
@@ -48,8 +48,11 @@ dat <- dat %>%
   mutate(across(tfp_growth:risk_aversion_ez_utility, ~ ifelse(is.na(.x), 0, 1)))
 
 a <- feols(
-  log(range) ~
-  .[vars]
+  # uniform range
+  log(range) ~ 
+  # parametric uncertainty variables
+  .[vars] 
+  # controls that may be correlated with parametric uncertainty
   + as.numeric(scc_year) + discountrate + central_value_per_ton_co2,
   dat
 ) %>%
