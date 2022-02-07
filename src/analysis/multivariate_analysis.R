@@ -100,10 +100,99 @@ a=ggplot(coefs%>%filter(!names%in%c("(Intercept)","SCC Year","SCC Year^2")),aes(
 a=a+labs(x="",y="Coefficient Value (Dependent Variable = Log SCC ($ per ton CO2))",col="Variable Type",pch="Model")
 a=a+coord_flip()+geom_hline(yintercept = 0)
 a
-#downsample distribution for random forest
-distrf=distreg[which(distreg$draw>0),]
-samp=1e6
-distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
+#####------------Random Forest Analysis ----------
+
+#TO DO: Need to actually resample from original dataset, not just down-sample distribution with equal paper weighting
+
+#define sample type
+#1. random sample - rand
+#2. draw each structural change with equal probability -struc
+#3. draw each two-way interaction of structural changes with equal probability - struc2
+
+source("src/analysis/find_distribution.R")
+#if not equal-weighting by paper, then need to resample from original dataset
+#this code fits a distribution to each row in the dataset
+set.seed(12345)
+all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
+all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
+
+#start by generating distributions for each row
+dists=list()
+for (ii in 1:nrow(dat)) {
+  print(ii)
+  all.as <- t(dat[ii, all.as.cols])
+  qs <- all.qs[!is.na(all.as)]
+  as <- all.as[!is.na(all.as)]
+  mu <- dat$`Central Value ($ per ton CO2)`[ii]
+  if (is.na(mu) && length(qs) == 0) {
+    next
+  }
+  
+  dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
+}
+
+dat=dat%>%
+  mutate(across("Carbon Cycle":"Learning",~replace_na(.x, 0)))%>%
+  mutate(across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))))
+cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
+colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
+
+dat=dat%>%
+  mutate(Earth_system_struc=ifelse("Carbon.Cycle_struc"=="Yes","Yes",ifelse("Climate.Model_struc"=="Yes","Yes","No")))%>%
+  mutate(Tipping_points_struc=ifelse("Tipping.Points_struc"=="Yes","Yes",ifelse("Tipping.Points2_struc"=="Yes","Yes","No")))
+
+type="struc" #possible values - rand, struc, struc2
+samp=1e6 #down-sample full 10e6 distribution to fit random forests
+
+if(type=="rand"){
+  distrf=distreg[which(distreg$draw>0),]
+  distrf$Earth_system_struc=ifelse(distrf$Carbon.Cycle_struc=="Yes","Yes",ifelse(distrf$Climate.Model_struc=="Yes","Yes","No"))
+  distrf$Tipping_points_struc=ifelse(distrf$Tipping.Points_struc=="Yes","Yes",ifelse(distrf$Tipping.Points2_struc=="Yes","Yes","No"))
+  distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
+} 
+if(type=="struc"){
+  struc=grep("_struc",colnames(dat))[-c(1:4)]
+  
+  weights_struc=matrix(nrow=nrow(dat),ncol=length(struc))
+  for(i in 1:length(struc)){
+    #equally-weight rows with and without structural change
+    struc_yes=which(dat[,struc[i]]=="Yes");struc_no=which(dat[,struc[i]]=="No")
+    
+    #assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
+    weights_struc[struc_yes,i]=1/length(struc_yes);weights_struc[struc_no,i]=1/length(struc_no)
+  }
+  #sum probability weights across rows and normalize to get probability weight for each row
+  weights=rowSums(weights_struc)/sum(rowSums(weights_struc))
+  
+  distrf=matrix(nrow=samp,ncol=2)
+  struc_samp=sample(1:nrow(dat),size=samp,replace=TRUE,prob=weights)
+  for(i in 1:samp){
+    if(i%%10000==0) print(i)
+    
+    distrf[i,1]=sample(dists[[struc_samp[i]]],1)
+    distrf[i,2]=struc_samp[i]
+  }
+  colnames(distrf)=c("draw","row")
+  fwrite(distrf,file="outputs/distribution_structuralchangeweighted.csv")
+  
+  #bind in covariates
+  covars=cbind(dat[,struc],param,dicemodel,fundmodel,pagemodel,backstop,sccyear_from2020,declining,discountrate)
+  distreg=cbind(distrf,covars[distrf[,2],])
+  
+  distreg=distreg[-which(distreg$draw<quantile(distreg$draw,0.01)|distreg$draw>quantile(distreg$draw,0.99)),]
+  distreg=distreg[complete.cases(distreg),]
+
+  #fix column names
+  colnames(distreg) <- gsub(" ", ".", colnames(distreg))
+  colnames(distreg) <- gsub("/", ".", colnames(distreg))
+  colnames(distreg) <- gsub("-", ".", colnames(distreg))
+  colnames(distreg) <- gsub("\\(" ,".", colnames(distreg))
+  colnames(distreg) <- gsub(")", ".", colnames(distreg))
+  
+  distrf=distreg
+  
+}
+
 distrf$y=log(distrf$draw)
 distrf=as.data.frame(distrf)
 
@@ -111,11 +200,16 @@ distrf=as.data.frame(distrf)
 distrf=distrf[,-which(colnames(distrf)%in%c("dicemodel","fundmodel","pagemodel"))]
 #limit to pre-2100 - vast majority of observations
 distrf=distrf[-which(dat$`SCC Year`[distrf$row]>2100),]
+#remove 2.6% of distribution with values <=0 that can't be logged
+distrf=distrf[-which(is.na(distrf$y)),]
 
-rfmod=ranger(num.trees=200,min.node.size=200,max.depth=12,y=distrf$y,x=distrf[,-c(1:2,31)],verbose=TRUE,importance="permutation")
+rfmod=ranger(num.trees=200,min.node.size=200,max.depth=12,y=distrf$y,x=distrf%>%select(-c(draw,row,y)),verbose=TRUE,importance="permutation")
 
-rfmod_explained=explain(rfmod,data=distrf[,-c(1:2,31)],y=distrf$y)
+rfmod_explained=explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
 rfmod_diag=model_diagnostics(rfmod_explained)
 rfmod_mod=model_parts(rfmod_explained);plot(rfmod_mod)
-rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent / Growth Damages_struc")
+rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent...Growth.Damages_struc")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate",k=3)
+
+
+#alternate down-sampling that 
