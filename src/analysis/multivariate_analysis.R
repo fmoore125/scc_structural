@@ -130,16 +130,15 @@ for (ii in 1:nrow(dat)) {
   
   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 }
-
+source("src/data_cleaining_scripts/cleaning_master.R")
 dat=dat%>%
   mutate(across("Carbon Cycle":"Learning",~replace_na(.x, 0)))%>%
   mutate(across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))))
 cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
 colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
 
-dat=dat%>%
-  mutate(Earth_system_struc=ifelse("Carbon.Cycle_struc"=="Yes","Yes",ifelse("Climate.Model_struc"=="Yes","Yes","No")))%>%
-  mutate(Tipping_points_struc=ifelse("Tipping.Points_struc"=="Yes","Yes",ifelse("Tipping.Points2_struc"=="Yes","Yes","No")))
+dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
+dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
 
 type="struc" #possible values - rand, struc, struc2
 samp=1e6 #down-sample full 10e6 distribution to fit random forests
@@ -173,11 +172,10 @@ if(type=="struc"){
     distrf[i,2]=struc_samp[i]
   }
   colnames(distrf)=c("draw","row")
-  fwrite(distrf,file="outputs/distribution_structuralchangeweighted.csv")
   
   #bind in covariates
   covars=cbind(dat[,struc],param,dicemodel,fundmodel,pagemodel,backstop,sccyear_from2020,declining,discountrate)
-  distreg=cbind(distrf,covars[distrf[,2],])
+  distreg=cbind(distrf,covars[as.matrix(distrf)[,2],])
   
   distreg=distreg[-which(distreg$draw<quantile(distreg$draw,0.01)|distreg$draw>quantile(distreg$draw,0.99)),]
   distreg=distreg[complete.cases(distreg),]
@@ -190,6 +188,7 @@ if(type=="struc"){
   colnames(distreg) <- gsub(")", ".", colnames(distreg))
   
   distrf=distreg
+  fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars.csv")
   
 }
 
@@ -201,15 +200,12 @@ distrf=distrf[,-which(colnames(distrf)%in%c("dicemodel","fundmodel","pagemodel")
 #limit to pre-2100 - vast majority of observations
 distrf=distrf[-which(dat$`SCC Year`[distrf$row]>2100),]
 #remove 2.6% of distribution with values <=0 that can't be logged
-distrf=distrf[-which(is.na(distrf$y)),]
+distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
-rfmod=ranger(num.trees=200,min.node.size=200,max.depth=12,y=distrf$y,x=distrf%>%select(-c(draw,row,y)),verbose=TRUE,importance="permutation")
+rfmod=ranger(y~.,data=testdat%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="permutation")
 
 rfmod_explained=explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
 rfmod_diag=model_diagnostics(rfmod_explained)
 rfmod_mod=model_parts(rfmod_explained);plot(rfmod_mod)
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent...Growth.Damages_struc")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate",k=3)
-
-
-#alternate down-sampling that 
