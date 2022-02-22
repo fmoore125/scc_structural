@@ -2,13 +2,33 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
   data.table, janitor, magrittr, fixest,
-  broom, tidyverse, tidylog, modelsummary
+  broom, tidyverse, tidylog
 )
 options("tidylog.display" = NULL)
 `%notin%` <- Negate(`%in%`)
 
 # load main dataset
 source("src/data_cleaining_scripts/cleaning_master.R")
+source("src/analysis/find_distribution.R")
+
+
+all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
+all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
+
+#start by generating distributions for each row
+dists=list()
+for (ii in 1:nrow(dat)) {
+    print(ii)
+    all.as <- t(dat[ii, all.as.cols])
+    qs <- all.qs[!is.na(all.as)]
+    as <- all.as[!is.na(all.as)]
+    mu <- dat$`Central Value ($ per ton CO2)`[ii]
+    if (is.na(mu) && length(qs) == 0) {
+        next
+    }
+    
+    dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
+}
 
 # select only the variables we need
 dat <- dat %>%
