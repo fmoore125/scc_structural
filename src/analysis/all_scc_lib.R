@@ -58,3 +58,20 @@ multivar.prep <- function(df) {
 
     df
 }
+
+get.struct.weights <- function(dat, colinds) {
+    weights_struc <- matrix(nrow=nrow(dat), ncol=length(colinds))
+
+    for (ii in 1:length(colinds)) {
+        for (struc.opt in unique(dat[, colinds[ii]])) {
+            ## equally-weight rows with and without structural change
+            struc.thisopt <- which(dat[, colinds[ii]] == struc.opt)
+
+            ## assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
+            weights_struc[struc.thisopt, ii] <- 1/length(struc.thisopt)
+        }
+    }
+
+    ## sum probability weights across rows and normalize to get probability weight for each row
+    rowSums(weights_struc) / sum(rowSums(weights_struc))
+}

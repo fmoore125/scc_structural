@@ -1,4 +1,4 @@
-## setwd("~/research/scciams/scc_structural")
+setwd("~/research/scciams/scc_structural")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/all_scc_lib.R")
@@ -7,8 +7,6 @@ dat$`SCC Year` <- as.numeric(dat$`SCC Year`)
 
 dat$log.scc.2020usd <- log(dat$`Central Value ($ per ton CO2)`)
 dat$log.scc.2020usd[!is.finite(dat$log.scc.2020usd)] <- NA
-
-dat <- multivar.prep(dat)
 
 ## emitdf <- get.emits("RCP 8.5")
 ## dmgfunc <- function(T) 0.0023888 * T^2
@@ -20,17 +18,33 @@ source("src/analysis/damage_funcs_lib.R")
 
 dat$log.scc.synth <- log(dat$scc.synth)
 
+datall <- get.all.scc(dat)
+
+dat <- multivar.prep(dat)
+datall <- multivar.prep(datall)
+
 library(rpart)
+library(splines)
+library(lfe)
 
-mod <- rpart(log.scc.2020usd ~ `SCC Year` + `Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + scc.synth, data=dat)
+dat$`Earth System` <- "0"
+dat$`Earth System`[paste(dat$`Carbon Cycle`, dat$`Climate Model`) != "0 0"] <- "1.0"
 
-mod <- rpart(log.scc.2020usd ~ `SCC Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat)
+datall$`Earth System` <- "0"
+datall$`Earth System`[paste(datall$`Carbon Cycle`, datall$`Climate Model`) != "0 0"] <- "1.0"
 
-mod <- rpart(log.scc.2020usd ~ `SCC Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat)
+struccols <- sapply(c("Backstop Price?", "Other Market Failure?", "Market Only Damages", "Ambiguity/Model Uncertainty", "Earth System", "Tipping Points", "Tipping Points2", "Epstein-Zin", "Inequality Aversion", "Learning", "Limitedly-Substitutable Goods", "Persistent / Growth Damages", "Alternative ethical approaches"), function(col) which(names(dat) == col))
 
-library(rpart.plot)
+weights <- get.struct.weights(dat, struccols)
 
-rpart.plot(mod)
+struccolsall <- sapply(c("Backstop Price?", "Other Market Failure?", "Market Only Damages", "Ambiguity/Model Uncertainty", "Earth System", "Tipping Points", "Tipping Points2", "Epstein-Zin", "Inequality Aversion", "Learning", "Limitedly-Substitutable Goods", "Persistent / Growth Damages", "Alternative ethical approaches"), function(col) which(names(datall) == col))
+
+weightsall <- get.struct.weights(datall, struccolsall)
+
+names(dat)[names(dat) == 'Tipping Points'] <- "Climate Tipping Point"
+names(dat)[names(dat) == 'Tipping Points2'] <- "Damages Tipping Point"
+names(datall)[names(datall) == 'Tipping Points'] <- "Climate Tipping Point"
+names(datall)[names(datall) == 'Tipping Points2'] <- "Damages Tipping Point"
 
 get.allvar <- function(framevar) {
     head <- framevar[1]
@@ -72,32 +86,82 @@ my.rpart.plot <- function(mod) {
     rpart.plot(mod, type=5, split.fun=split.fun)
 }
 
+for (period in c('2010-2030', '2030-2070', '2070-2100', '2010-2100')) {
+    if (period == '2010-2030')
+        in.period <- dat$`SCC Year` > 2010 & dat$`SCC Year` <= 2030
+    else if (period == '2030-2070')
+        in.period <- dat$`SCC Year` > 2030 & dat$`SCC Year` <= 2070
+    else if (period == '2070-2100')
+        in.period <- dat$`SCC Year` > 2070 & dat$`SCC Year` <= 2100
+    else if (period == '2010-2100')
+        in.period <- dat$`SCC Year` > 2010 & dat$`SCC Year` <= 2100
+    else {
+        in.period <- F
+        print("Unknown period")
+    }
+
+    ## mod <- rpart(log.scc.2020usd ~ `SCC Year` + `Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + scc.synth, data=dat[in.period,], weights=weights[in.period])
+
+    mod <- rpart(log.scc.2020usd ~ `Backstop Price?` + `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat[in.period,], weights=weights[in.period])
+
+    library(rpart.plot)
+
+    ## rpart.plot(mod)
+
+    grDevices::cairo_pdf(paste0("figures/levels-", period, ".pdf"), width=6.5, height=4)
+    my.rpart.plot(mod)
+    dev.off()
+
+    ## First, remove effect of discount rate and SCC Year
+
+    ## summary(lm(log.scc.2020usd ~ `SCC Year` + discountrate, data=dat[in.period & !is.na(dat$`SCC Year`) & !is.na(dat$discountrate),]))
+    ## summary(lm(log.scc.2020usd ~ poly(`SCC Year`, 2) + poly(discountrate, 2), data=dat[in.period & !is.na(dat$`SCC Year`) & !is.na(dat$discountrate),]))
+
+    ## factout <- lm(log.scc.2020usd ~ poly(`SCC Year`, 2) + poly(discountrate, 2), data=dat[in.period & !is.na(dat$`SCC Year`) & !is.na(dat$discountrate),])
+    ## summary(factout)
+
+    ## top 3 in sort(table(dat$discountrate)[table(dat$discountrate) > 10])
+    ##
+    splines <- as.data.frame(cbind(ns(dat$discountrate, knots=c(1.5, 3, 5)),
+                                   ns(dat$`SCC Year`, knots=c(2010, 2050, 2100))))
+    names(splines) <- c('dr1', 'dr2', 'dr3', 'dr4', 'sy1', 'sy2', 'sy3', 'sy4')
+    dat2 <- cbind(dat, splines)
+    factout <- lm(log.scc.2020usd ~ dr1 + dr2 + dr3 + dr4 + sy1 + sy2 + sy3 + sy4, data=dat2[in.period & !is.na(dat2$`SCC Year`) & !is.na(dat2$discountrate),])
+
+    subdat <- dat[in.period & !is.na(dat$`SCC Year`) & !is.na(dat$discountrate),]
+    subdat$resid <- NA
+    subdat$resid[-factout$na.action] <- factout$resid
+    subwgt <- weights[in.period & !is.na(dat$`SCC Year`) & !is.na(dat$discountrate)]
+
+    mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=subdat, weights=subwgt)
+
+    grDevices::cairo_pdf(paste0("figures/ratios-", period, ".pdf"), width=6.5, height=4)
+    my.rpart.plot(mod)
+    dev.off()
+
+    ## Try with base SCCs
+
+    factout <- felm(log.scc.2020usd ~ 1 | basecode, data=datall[in.period,])
+
+    subdat <- datall[in.period,]
+    subdat$resid <- NA
+    subdat$resid[-factout$na.action] <- factout$resid
+    subwgt <- weightsall[in.period]
+
+    mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=subdat, weights=subwgt)
+
+    grDevices::cairo_pdf(paste0("figures/ratios-all-", period, ".pdf"), width=6.5, height=4)
+    my.rpart.plot(mod)
+    dev.off()
+}
+
+mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat)
+
+mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat)
+
 my.rpart.plot(mod)
 
-## First, remove effect of discount rate and SCC Year
-
-summary(lm(log.scc.2020usd ~ `SCC Year` + discountrate, data=dat[!is.na(dat$`SCC Year`) & !is.na(dat$discountrate),]))
-summary(lm(log.scc.2020usd ~ poly(`SCC Year`, 2) + poly(discountrate, 2), data=dat[!is.na(dat$`SCC Year`) & !is.na(dat$discountrate),]))
-
-factout <- lm(log.scc.2020usd ~ poly(`SCC Year`, 2) + poly(discountrate, 2), data=dat[!is.na(dat$`SCC Year`) & !is.na(dat$discountrate),])
-summary(factout)
-
-dat$resid <- NA
-dat$resid[-factout$na.action] <- factout$resid
-
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat)
-
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat)
-
-my.rpart.plot(mod)
-
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat)
-
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat)
-
-my.rpart.plot(mod)
-
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat[dat$`Persistent / Growth Damages` == "0",])
+mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=dat[dat$`Persistent / Growth Damages` == "0",])
 
 my.rpart.plot(mod)
 
@@ -125,11 +189,11 @@ library(rpart)
 
 df <- multivar.prep(df)
 
-mod <- rpart(log.scc ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=df)
+mod <- rpart(log.scc ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=df)
 
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=df)
+mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=df)
 
-mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Tipping Points` + `Tipping Points2` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=df)
+mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=df)
 
 library(rpart.plot)
 
