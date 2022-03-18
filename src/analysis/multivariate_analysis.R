@@ -51,39 +51,24 @@ colnames(distreg) <- gsub("-", ".", colnames(distreg))
 colnames(distreg) <- gsub("\\(" ,".", colnames(distreg))
 colnames(distreg) <- gsub(")", ".", colnames(distreg))
 
+#concatenate carbon cycle and climate model changes into a single "Earth System Change" 
+distreg$Earth_system_struc=factor(ifelse(distreg$"Carbon.Cycle_struc"=="Yes","Yes",ifelse(distreg$"Climate.Model_struc"=="Yes","Yes","No")))
+
+
 #simplest linear regression to start
-mod=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Carbon.Cycle_struc+Climate.Model_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+mod=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop,cluster="row",data=distreg[which(distreg$draw>0),])
 
-mod_paperfe=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Carbon.Cycle_struc+Climate.Model_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+mod_paperfe=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop|paper,cluster="row",data=distreg[which(distreg$draw>0),])
 
-# #add in "base SCC values" to get additional power for within-paper variation analysis
-# basevals=dat[-which(is.na(dat$`Reported Base Model SCC (if applicable)`)),]
-# basedat=matrix(nrow=nrow(basevals),ncol=ncol(distreg));colnames(basedat)=colnames(distreg);basedat=as.data.frame(basedat)
-# basedat$draw=basevals$`Reported Base Model SCC (if applicable)`;basedat$row=rownames(basevals);basedat$row=as.numeric(basedat$row)
-# basedat[,3:26]="No"
-# basedat$dicemodel=0;basedat$dicemodel[which(basedat$row%in%c(grep("DICE",dat$`Base IAM (if applicable)`),grep("DICE",dat$`IAM Calibrated To (if applicable)`)))]=1
-# basedat$fundmodel=0;basedat$fundmodel[which(basedat$row%in%c(grep("FUND",dat$`Base IAM (if applicable)`),grep("FUND",dat$`IAM Calibrated To (if applicable)`)))]=1
-# basedat$pagemodel=0;basedat$pagemodel[which(basedat$row%in%c(grep("PAGE",dat$`Base IAM (if applicable)`),grep("PAGE",dat$`IAM Calibrated To (if applicable)`)))]=1
-# basedat$backstop=dat$`Backstop Price?`[basedat$row];basedat$backstop[which(is.na(basedat$backstop))]=0
-# basedat$declining=dat$`Declining Discounting?`[basedat$row];basedat$declining[which(is.na(basedat$declining))]=0
-# basedat$sccyear_from2020=as.numeric(dat$`SCC Year`[basedat$row])-2020;basedat$discountrate=dat$discountrate[basedat$row];basedat$paper=dat$ID_number[basedat$row]
-# 
-# distreg_mod=rbind(distreg,basedat)
-# 
-# mod_paperfe_withbase=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Carbon.Cycle_struc+Climate.Model_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
-#                     Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
-#                     Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
-#                     Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
-#                     Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop|paper,cluster="row",data=distreg_mod[which(distreg_mod$draw>0),])
-# 
+
 
 varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","declining"="Declining DR","Carbon.Cycle_strucYes"="Carbon Cycle (Struc)","Climate.Model_strucYes"="Climate Model", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality AVersion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price")
 
@@ -138,7 +123,7 @@ cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
 colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
 
 dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
-dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
+#dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
 
 type="struc" #possible values - rand, struc, struc2
 samp=1e6 #down-sample full 10e6 distribution to fit random forests
@@ -202,7 +187,7 @@ distrf=distrf[-which(dat$`SCC Year`[distrf$row]>2100),]
 #remove 2.6% of distribution with values <=0 that can't be logged
 distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
-rfmod=ranger(y~.,data=testdat%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="permutation")
+rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="permutation")
 
 rfmod_explained=explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
 rfmod_diag=model_diagnostics(rfmod_explained)
