@@ -4,6 +4,7 @@ library(ranger)
 library(fixest)
 library(modelsummary)
 library(forcats)
+library(lfe)
 
 dist=fread(file="outputs/distribution.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -67,6 +68,31 @@ mod_paperfe=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discou
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop|paper,cluster="row",data=distreg[which(distreg$draw>0),])
+
+#set up regression of difference from "baseSCC"
+source("src/data_cleaining_scripts/cleaning_master.R")
+source("src/analysis/all_scc_lib.R")
+
+df <- get.all.scc(dat)
+
+df$log.scc <- log(df$scc)
+df$log.scc[!is.finite(df$log.scc)] <- NA
+
+df <- multivar.prep(df) #why is SCC Dollar Year in base model cols?
+
+#collapse Carbon Cycle and Climate Model into single Earth System category
+df$Earth_system=factor(ifelse(df$"Carbon Cycle"=="1.0",1,ifelse(df$"Climate Model"=="1.0",1.0,0)))
+allcols <- names(df)[c(1, 8, 10, 12:16, 18:24, 28:36, 79)]
+allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
+
+#collapse "Calibrated" into 1
+df=df%>%
+  mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))))
+
+
+form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified | `IAM Calibrated To (if applicable)` + basecode"))
+mod_basescc <- felm(form, data=df) #2167 observations deleted due to missingness?
+
 
 
 
