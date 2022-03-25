@@ -69,6 +69,11 @@ mod_paperfe=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discou
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop|paper,cluster="row",data=distreg[which(distreg$draw>0),])
 
+varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","declining"="Declining DR","Carbon.Cycle_strucYes"="Carbon Cycle (Struc)","Climate.Model_strucYes"="Climate Model", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality AVersion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price")
+
+modelsummary(models=list(mod,mod_paperfe),coef_rename = varnames,output="outputs\\sccolsanalysis.docx",stars=TRUE)
+
+
 #set up regression of difference from "baseSCC"
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/all_scc_lib.R")
@@ -78,27 +83,27 @@ df <- get.all.scc(dat)
 df$log.scc <- log(df$scc)
 df$log.scc[!is.finite(df$log.scc)] <- NA
 
-df <- multivar.prep(df) #why is SCC Dollar Year in base model cols?
+allcols <- names(dat)[c(1, 8, 10, 12:13,15:16, 18:24, 28:36)]
+allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
+
+df <- multivar.prep(df) 
 
 #collapse Carbon Cycle and Climate Model into single Earth System category
 df$Earth_system=factor(ifelse(df$"Carbon Cycle"=="1.0",1,ifelse(df$"Climate Model"=="1.0",1.0,0)))
-allcols <- names(df)[c(1, 8, 10, 12:16, 18:24, 28:36, 79)]
-allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
+
+allcols=append(allcols,"Earth_system")
 
 #collapse "Calibrated" into 1
 df=df%>%
-  mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))))
+  mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,"0"=c("-1.0","0"),"1"=c("1.0","Calibrated"))))
 
-
-form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified | `IAM Calibrated To (if applicable)` + basecode"))
+form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified |  basecode|0|ID_number"))
 mod_basescc <- felm(form, data=df) #2167 observations deleted due to missingness?
 
+varnames_base=c("Earth_system1"="Earth System","`Tipping Points`1" ="Climate Tipping Points","`Tipping Points2`1"="Damages Tipping Points", "`Persistent / Growth Damages`1"="Growth Damages","`Epstein-Zin`1"="Epstein Zin","`Ambiguity/Model Uncertainty`1"="Ambiguity","`Limitedly-Substitutable Goods`1" ="Limited-Substitutability","`Inequality Aversion`1"="Inequality Aversion","Learning1"="Learning","backstop"="Backstop Price?`1.0"," other market failure"="`Other Market Failure?`1.0","market only damages"="`Market Only Damages`1.0")
+modelsummary(models=list(mod_basescc),coef_rename = varnames,output="outputs\\sccolsanalysis_basescc.docx",stars=TRUE)
 
 
-
-varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","declining"="Declining DR","Carbon.Cycle_strucYes"="Carbon Cycle (Struc)","Climate.Model_strucYes"="Climate Model", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality AVersion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price")
-
-modelsummary(models=list(mod,mod_paperfe),coef_rename = varnames,output="outputs\\sccolsanalysis.docx",stars=TRUE)
 
 #impossible to show properly in table to make a plot of coefficient values instead
 coefs=data.frame(coefs=c(mod$coefficients,mod_paperfe$coefficients),sd=c(mod$se,mod_paperfe$se),names=c(names(mod$coefficients),names(mod_paperfe$coefficients)),mod=c(rep("No Fixed-Effects",length(mod$coefficients)),rep("Paper Fixed-Effects",length(mod_paperfe$coefficients))))
