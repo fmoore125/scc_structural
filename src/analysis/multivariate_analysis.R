@@ -5,6 +5,8 @@ library(fixest)
 library(modelsummary)
 library(forcats)
 library(lfe)
+library(patchwork)
+library(MetBrewer)
 
 dist=fread(file="outputs/distribution.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -30,13 +32,13 @@ fundmodel=numeric(length=nrow(dat));fundmodel[c(grep("FUND",dat$`Base IAM (if ap
 pagemodel=numeric(length=nrow(dat));pagemodel[c(grep("PAGE",dat$`Base IAM (if applicable)`),grep("PAGE",dat$`IAM Calibrated To (if applicable)`))]=1
 
 backstop=numeric(length=nrow(dat));backstop[which(dat$`Backstop Price?`=="1.0")]=1
-failure=numeric(length=nrow(dat));failure[which(dat$`Other Market Failure?`=="1.0")]=1
+failure=numeric(length=nrow(dat));failure[which(!is.na(dat$`Other Market Failure?`))]=1
 sccyear_from2020=as.numeric(dat$`SCC Year`)-2020
 marketonly=numeric(length=nrow(dat));marketonly[which(dat$`Market Only Damages`=="1.0")]=1
 declining=numeric(length=nrow(dat));declining[which(dat$`Declining Discounting?` =="1.0")]=1
 discountrate=round(dat$discountrate,2)
 
-covars=cbind(struc,param,dicemodel,fundmodel,pagemodel,backstop,sccyear_from2020,declining,discountrate)
+covars=cbind(struc,param,dicemodel,fundmodel,pagemodel,backstop,sccyear_from2020,declining,discountrate,marketonly,failure)
 distreg=cbind(dist,covars[dist$row,])
 
 distreg=distreg[-which(distreg$draw<quantile(distreg$draw,0.01)|distreg$draw>quantile(distreg$draw,0.99)),]
@@ -57,19 +59,19 @@ distreg$Earth_system_struc=factor(ifelse(distreg$"Carbon.Cycle_struc"=="Yes","Ye
 
 
 #simplest linear regression to start
-mod=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+mod=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
-            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop,cluster="row",data=distreg[which(distreg$draw>0),])
+            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+sccyear_from2020+I(sccyear_from2020^2)+discountrate+I(discountrate^2)+declining+dicemodel+fundmodel+pagemodel+backstop+failure,cluster="row",data=distreg[which(distreg$draw>0),])
 
-mod_paperfe=feols(fml=I(log(draw))~sccyear_from2020+I(sccyear_from2020^2)+discountrate+declining+Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+mod_paperfe=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
-            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+dicemodel+fundmodel+pagemodel+backstop|paper,cluster="row",data=distreg[which(distreg$draw>0),])
+            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+sccyear_from2020+I(sccyear_from2020^2)+discountrate+I(discountrate^2)+declining+dicemodel+fundmodel+pagemodel+backstop+failure|paper,cluster="row",data=distreg[which(distreg$draw>0),])
 
-varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","declining"="Declining DR","Carbon.Cycle_strucYes"="Carbon Cycle (Struc)","Climate.Model_strucYes"="Climate Model", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality AVersion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price")
+varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","I(I(discountrate^2))"="Discount Rate^2","declining"="Declining DR","Earth_system_strucYes"="Earth System", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality Aversion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price","failure"="Other Market Failure")
 
 modelsummary(models=list(mod,mod_paperfe),coef_rename = varnames,output="outputs\\sccolsanalysis.docx",stars=TRUE)
 
@@ -83,7 +85,7 @@ df <- get.all.scc(dat)
 df$log.scc <- log(df$scc)
 df$log.scc[!is.finite(df$log.scc)] <- NA
 
-allcols <- names(dat)[c(1, 8, 10, 12:13,15:16, 18:24, 28:36)]
+allcols <- names(dat)[c(1, 8, 10, 12:13,15:16, 18:23, 28:36)]
 allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
 
 df <- multivar.prep(df) 
@@ -97,25 +99,51 @@ allcols=append(allcols,"Earth_system")
 df=df%>%
   mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,"0"=c("-1.0","0"),"1"=c("1.0","Calibrated"))))
 
-form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified |  basecode|0|ID_number"))
+form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified |  basecode|0|basecode"))
 mod_basescc <- felm(form, data=df) #2167 observations deleted due to missingness?
 
-varnames_base=c("Earth_system1"="Earth System","`Tipping Points`1" ="Climate Tipping Points","`Tipping Points2`1"="Damages Tipping Points", "`Persistent / Growth Damages`1"="Growth Damages","`Epstein-Zin`1"="Epstein Zin","`Ambiguity/Model Uncertainty`1"="Ambiguity","`Limitedly-Substitutable Goods`1" ="Limited-Substitutability","`Inequality Aversion`1"="Inequality Aversion","Learning1"="Learning","backstop"="Backstop Price?`1.0"," other market failure"="`Other Market Failure?`1.0","market only damages"="`Market Only Damages`1.0")
-modelsummary(models=list(mod_basescc),coef_rename = varnames,output="outputs\\sccolsanalysis_basescc.docx",stars=TRUE)
+varnames_base=c("Earth_system1"="Earth System","`Tipping Points`1" ="Climate Tipping Points","`Tipping Points2`1"="Damages Tipping Points", "`Persistent / Growth Damages`1"="Growth Damages","`Epstein-Zin`1"="Epstein Zin","`Ambiguity/Model Uncertainty`1"="Ambiguity","`Limitedly-Substitutable Goods`1" ="Limited-Substitutability","`Inequality Aversion`1"="Inequality Aversion","Learning1"="Learning","`Backstop Price?`1.0"="Backstop","`Other Market Failure?`1.0"="Other Market Failure","modifiedTRUE"="Other Modification","`Alternative ethical approaches`1"="Other Ethical Approaches")
+modelsummary(models=list(mod_basescc),coef_rename = varnames_base,output="outputs\\sccolsanalysis_basescc.docx",stars=TRUE)
 
 
 
 #impossible to show properly in table to make a plot of coefficient values instead
 coefs=data.frame(coefs=c(mod$coefficients,mod_paperfe$coefficients),sd=c(mod$se,mod_paperfe$se),names=c(names(mod$coefficients),names(mod_paperfe$coefficients)),mod=c(rep("No Fixed-Effects",length(mod$coefficients)),rep("Paper Fixed-Effects",length(mod_paperfe$coefficients))))
-coefs$type="Structural";coefs$type[grep("param",coefs$names)]="Parametric";coefs$type[c(grep("Intercept",coefs$names),grep("sccyear",coefs$names),grep("declining",coefs$names),grep("discountrate",coefs$names),grep("dicemodel",coefs$names),grep("fundmodel",coefs$names),grep("pagemodel",coefs$names),grep("backstop",coefs$names))]="Other"
-coefs$names=fct_recode(coefs$names,'SCC Year'="sccyear_from2020", "SCC Year^2"="I(I(sccyear_from2020^2))","Discount Rate"="discountrate","Declining DR"="declining","Carbon Cycle (Struc)"="Carbon.Cycle_strucYes","Climate Model"="Climate.Model_strucYes",  "Climate Tipping Points"="Tipping.Points_strucYes","Damages Tipping Points"="Tipping.Points2_strucYes","Growth Damages"= "Persistent...Growth.Damages_strucYes","Epstein Zin"="Epstein.Zin_strucYes","Ambiguity"="Ambiguity.Model.Uncertainty_strucYes","Limited-Substitutability"="Limitedly.Substitutable.Goods_strucYes" ,"Inequality Aversion"="Inequality.Aversion_strucYes","Learning"="Learning_strucYes","TFP Growth"="TFP.Growth_paramYes","Pop Growth"="Population.Growth_paramYes","Emissions Growth"="Emissions.Growth_paramYes", "Trans. Climate Resp."="Transient.Climate.Response_paramYes" ,"Carbon Cycle (Param)"="Carbon.Cycle2_paramYes" ,"Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_paramYes", "Tipping Point Size"="Tipping.Point.Magnitude_paramYes","Damage Function"="Damage.Function_paramYes","Adaptation Rates"="Adaptation.Rates_paramYes" ,"Income Elasticity"="Income.Elasticity_paramYes","Const. Discount Rate"="Constant.Discount.Rate_paramYes" ,"EMUC"="EMUC2_paramYes", "PRTP"="PRTP2_paramYes","Risk Aversion"="Risk.Aversion..EZ.Utility._paramYes" , "DICE"="dicemodel","FUND"="fundmodel","PAGE"="pagemodel" ,"Backstop Price"="backstop")
+coefs$type="Structural";coefs$type[grep("param",coefs$names)]="Parametric";coefs$type[c(grep("Intercept",coefs$names),grep("sccyear",coefs$names),grep("declining",coefs$names),grep("discountrate",coefs$names),grep("dicemodel",coefs$names),grep("fundmodel",coefs$names),grep("pagemodel",coefs$names),grep("backstop",coefs$names),grep("market",coefs$names),grep("failure",coefs$names))]="Other"
+coefs$names=fct_recode(coefs$names,'SCC Year'="sccyear_from2020", "SCC Year^2"="I(I(sccyear_from2020^2))","Discount Rate"="discountrate","Discount Rate^2"="I(I(discountrate^2))","Declining DR"="declining","Earth System"="Earth_system_strucYes", "Climate Tipping Points"="Tipping.Points_strucYes","Damages Tipping Points"="Tipping.Points2_strucYes","Growth Damages"= "Persistent...Growth.Damages_strucYes","Epstein Zin"="Epstein.Zin_strucYes","Ambiguity"="Ambiguity.Model.Uncertainty_strucYes","Limited-Substitutability"="Limitedly.Substitutable.Goods_strucYes" ,"Inequality Aversion"="Inequality.Aversion_strucYes","Learning"="Learning_strucYes","TFP Growth"="TFP.Growth_paramYes","Pop Growth"="Population.Growth_paramYes","Emissions Growth"="Emissions.Growth_paramYes", "Trans. Climate Resp."="Transient.Climate.Response_paramYes" ,"Carbon Cycle"="Carbon.Cycle2_paramYes" ,"Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_paramYes", "Tipping Point Size"="Tipping.Point.Magnitude_paramYes","Damage Function"="Damage.Function_paramYes","Adaptation Rates"="Adaptation.Rates_paramYes" ,"Income Elasticity"="Income.Elasticity_paramYes","Const. Discount Rate"="Constant.Discount.Rate_paramYes" ,"EMUC"="EMUC2_paramYes", "PRTP"="PRTP2_paramYes","Risk Aversion"="Risk.Aversion..EZ.Utility._paramYes" , "DICE"="dicemodel","FUND"="fundmodel","PAGE"="pagemodel" ,"Backstop Price"="backstop","Market Only Damages"="marketonly","Other Market Failure"="failure")
 
-coefs$names=ordered(coefs$names,levels=rev(c("Carbon Cycle (Struc)","Climate Model","Climate Tipping Points","Damages Tipping Points","Limited-Substitutability","Growth Damages","Epstein Zin","Inequality Aversion","Learning","Ambiguity","TFP Growth","Pop Growth","Emissions Growth","Trans. Climate Resp.","Carbon Cycle (Param)","Eqm. Climate Sens.","Tipping Point Size","Damage Function","Adaptation Rates","Income Elasticity","Const. Discount Rate","EMUC","PRTP","Risk Aversion","DICE","PAGE","FUND","Backstop Price","Discount Rate","Declining DR","SCC Year","SCC Year^2","(Intercept)")))
 
-a=ggplot(coefs%>%filter(!names%in%c("(Intercept)","SCC Year","SCC Year^2")),aes(x=names,y=coefs,ymin=coefs-1.67*sd,ymax=coefs+1.67*sd,pch=mod,col=type))+geom_point(position=position_dodge(width = 0.9))+geom_errorbar(position=position_dodge(width = 0.9))+theme_bw()
-a=a+labs(x="",y="Coefficient Value (Dependent Variable = Log SCC ($ per ton CO2))",col="Variable Type",pch="Model")
-a=a+coord_flip()+geom_hline(yintercept = 0)
-a
+#add base scc regression coefficients
+coefs_base=data.frame(coefs=mod_basescc$coefficients,sd=mod_basescc$se,names=names(coefficients(mod_basescc)),mod="Base SCC Comparison")
+coefs_base$type=c(rep("Other",2),rep("Structural",10),"Other")
+coefs_base$names=fct_recode(coefs_base$names,"Earth System"="Earth_system1", "Climate Tipping Points"="`Tipping Points`1","Damages Tipping Points"="`Tipping Points2`1","Growth Damages"= "`Persistent / Growth Damages`1","Epstein Zin"="`Epstein-Zin`1","Ambiguity"="`Ambiguity/Model Uncertainty`1","Limited-Substitutability"="`Limitedly-Substitutable Goods`1" ,"Inequality Aversion"="`Inequality Aversion`1","Learning"="Learning1","Backstop Price"="`Backstop Price?`1.0","Other Market Failure"="`Other Market Failure?`1.0")
+
+#drop some coefficients
+coefs_base=coefs_base[-c(grep("modified",coefs_base$names),grep("Alternative",coefs_base$names)),]
+colnames(coefs_base)=colnames(coefs)
+coefs=rbind(coefs,coefs_base)
+
+coefs$names=ordered(coefs$names,levels=rev(c("Earth System","Climate Tipping Points","Damages Tipping Points","Limited-Substitutability","Growth Damages","Epstein Zin","Inequality Aversion","Learning","Ambiguity","TFP Growth","Pop Growth","Emissions Growth","Trans. Climate Resp.","Carbon Cycle","Eqm. Climate Sens.","Tipping Point Size","Damage Function","Adaptation Rates","Income Elasticity","Const. Discount Rate","EMUC","PRTP","Risk Aversion","DICE","PAGE","FUND","Discount Rate","Discount Rate^2","Declining DR","SCC Year","SCC Year^2","Backstop Price","Market Only Damages","Other Market Failure","(Intercept)")))
+coefs$mod=ordered(coefs$mod,levels=rev(c("Base SCC Comparison","Paper Fixed-Effects","No Fixed-Effects")))
+
+coeftypes=c("Structural","Parametric","Other")
+titles=c("Structural Changes","Parametric Variation","Other Parameters")
+cols=met.brewer("Navajo",3,type="discrete")
+plots=list()
+count=1
+for(i in coeftypes){
+  plots[[count]]=ggplot(coefs%>%filter(!names%in%c("(Intercept)","SCC Year","SCC Year^2"))%>%filter(type==i),aes(x=names,y=coefs,ymin=coefs-1.67*sd,ymax=coefs+1.67*sd,col=mod))+geom_point(position=position_dodge(width = 0.9))+geom_errorbar(position=position_dodge(width = 0.9))+theme_bw()
+  plots[[count]]=plots[[count]]+labs(x="",y="Coefficient Value\n(Dependent Variable = Log SCC)",col="Model",title=titles[count])
+  plots[[count]]=plots[[count]]+coord_flip()+geom_hline(yintercept = 0)+ylim(-2,3)
+  plots[[count]]=plots[[count]]+scale_color_manual(values=cols)
+  if(count!=3) plots[[count]]=plots[[count]]+theme(legend.position="none")
+  plots[[count]]=plots[[count]]+geom_vline(xintercept = 1:13+0.5)
+  count=count+1
+}
+x11()
+plots[[1]]+plots[[2]]+plots[[3]]
+
+
 #####------------Random Forest Analysis ----------
 
 #TO DO: Need to actually resample from original dataset, not just down-sample distribution with equal paper weighting
