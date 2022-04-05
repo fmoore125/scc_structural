@@ -149,15 +149,15 @@ plots=list()
 count=1
 for(i in coeftypes){
   plots[[count]]=ggplot(coefs%>%filter(!names%in%c("(Intercept)","SCC Year","SCC Year^2"))%>%filter(type==i),aes(x=names,y=coefs,ymin=coefs-1.67*sd,ymax=coefs+1.67*sd,col=mod))+geom_point(position=position_dodge(width = 0.9))+geom_errorbar(position=position_dodge(width = 0.9))+theme_bw()
-  plots[[count]]=plots[[count]]+labs(x="",y="Coefficient Value\n(Dependent Variable = Log SCC)",col="Model",title=titles[count])
+  plots[[count]]=plots[[count]]+labs(x="",y="Coefficient Value\nDependent Variable = Log SCC",col="Model",title=titles[count])
   plots[[count]]=plots[[count]]+coord_flip()+geom_hline(yintercept = 0)+ylim(-2,3)
-  plots[[count]]=plots[[count]]+scale_color_manual(values=cols)
+  plots[[count]]=plots[[count]]+scale_color_manual(values=cols,labels=c("Model 1: No Fixed Effects", "Model 2: Paper Fixed-Effects", "Model 3: Base SCC"))
   if(count!=3) plots[[count]]=plots[[count]]+theme(legend.position="none")
   plots[[count]]=plots[[count]]+geom_vline(xintercept = 1:13+0.5)
   count=count+1
 }
 x11()
-plots[[1]]+plots[[2]]+plots[[3]]
+plots[[1]]/plots[[2]]/plots[[3]]
 
 
 #####------------Random Forest Analysis ----------
