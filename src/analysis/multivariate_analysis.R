@@ -1,3 +1,5 @@
+## setwd("~/research/scciams/scc_structural/")
+
 library(data.table)
 library(DALEX)
 library(ranger)
@@ -54,7 +56,7 @@ colnames(distreg) <- gsub("-", ".", colnames(distreg))
 colnames(distreg) <- gsub("\\(" ,".", colnames(distreg))
 colnames(distreg) <- gsub(")", ".", colnames(distreg))
 
-#concatenate carbon cycle and climate model changes into a single "Earth System Change" 
+#concatenate carbon cycle and climate model changes into a single "Earth System Change"
 distreg$Earth_system_struc=factor(ifelse(distreg$"Carbon.Cycle_struc"=="Yes","Yes",ifelse(distreg$"Climate.Model_struc"=="Yes","Yes","No")))
 
 
@@ -88,7 +90,7 @@ df$log.scc[!is.finite(df$log.scc)] <- NA
 allcols <- names(dat)[c(1, 8, 10, 12:13,15:16, 18:23, 28:36)]
 allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical approaches"
 
-df <- multivar.prep(df) 
+df <- multivar.prep(df)
 
 #collapse Carbon Cycle and Climate Model into single Earth System category
 df$Earth_system=factor(ifelse(df$"Carbon Cycle"=="1.0",1,ifelse(df$"Climate Model"=="1.0",1.0,0)))
@@ -129,6 +131,20 @@ coefs$mod=ordered(coefs$mod,levels=rev(c("Base SCC Comparison","Paper Fixed-Effe
 coeftypes=c("Structural","Parametric","Other")
 titles=c("Structural Changes","Parametric Variation","Other Parameters")
 cols=met.brewer("Navajo",3,type="discrete")
+
+coefs$title <- fct_recode(coefs$type, "Structural Changes"="Structural", "Parametric Variation"="Parametric",
+                          "Other Parameters"="Other")
+coefs$title <- factor(coefs$title, levels=titles)
+
+ggplot(subset(coefs, !is.na(names) & !names%in%c("(Intercept)","SCC Year","SCC Year^2")), aes(coefs, names, col=mod)) +
+    facet_grid(title ~ "Standardized coefficient values, by group", scales="free_y", space="free_y") +
+    geom_vline(xintercept=0) +
+    geom_point(position=position_dodge(width = 0.5)) +
+    geom_errorbar(aes(xmin=coefs-1.67*sd,xmax=coefs+1.67*sd), position=position_dodge(width = 0.5)) +
+    theme_bw() + labs(y=NULL,x="Coefficient Value\n(Dependent Variable = Log SCC)",col="Model") +
+    geom_hline(yintercept = 0) + scale_color_manual(values=cols)
+
+
 plots=list()
 count=1
 for(i in coeftypes){
@@ -171,7 +187,7 @@ for (ii in 1:nrow(dat)) {
   if (is.na(mu) && length(qs) == 0) {
     next
   }
-  
+
   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 }
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -192,35 +208,35 @@ if(type=="rand"){
   distrf$Earth_system_struc=ifelse(distrf$Carbon.Cycle_struc=="Yes","Yes",ifelse(distrf$Climate.Model_struc=="Yes","Yes","No"))
   distrf$Tipping_points_struc=ifelse(distrf$Tipping.Points_struc=="Yes","Yes",ifelse(distrf$Tipping.Points2_struc=="Yes","Yes","No"))
   distrf=distrf[sample(1:nrow(distrf),size=samp,replace=FALSE),]
-} 
+}
 if(type=="struc"){
   struc=grep("_struc",colnames(dat))[-c(1:4)]
-  
+
   weights_struc=matrix(nrow=nrow(dat),ncol=length(struc))
   for(i in 1:length(struc)){
     #equally-weight rows with and without structural change
     struc_yes=which(dat[,struc[i]]=="Yes");struc_no=which(dat[,struc[i]]=="No")
-    
+
     #assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
     weights_struc[struc_yes,i]=1/length(struc_yes);weights_struc[struc_no,i]=1/length(struc_no)
   }
   #sum probability weights across rows and normalize to get probability weight for each row
   weights=rowSums(weights_struc)/sum(rowSums(weights_struc))
-  
+
   distrf=matrix(nrow=samp,ncol=2)
   struc_samp=sample(1:nrow(dat),size=samp,replace=TRUE,prob=weights)
   for(i in 1:samp){
     if(i%%10000==0) print(i)
-    
+
     distrf[i,1]=sample(dists[[struc_samp[i]]],1)
     distrf[i,2]=struc_samp[i]
   }
   colnames(distrf)=c("draw","row")
-  
+
   #bind in covariates
   covars=cbind(dat[,struc],param,dicemodel,fundmodel,pagemodel,backstop,sccyear_from2020,declining,discountrate)
   distreg=cbind(distrf,covars[as.matrix(distrf)[,2],])
-  
+
   distreg=distreg[-which(distreg$draw<quantile(distreg$draw,0.01)|distreg$draw>quantile(distreg$draw,0.99)),]
   distreg=distreg[complete.cases(distreg),]
 
@@ -230,10 +246,10 @@ if(type=="struc"){
   colnames(distreg) <- gsub("-", ".", colnames(distreg))
   colnames(distreg) <- gsub("\\(" ,".", colnames(distreg))
   colnames(distreg) <- gsub(")", ".", colnames(distreg))
-  
+
   distrf=distreg
   fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars.csv")
-  
+
 }
 
 distrf$y=log(distrf$draw)
