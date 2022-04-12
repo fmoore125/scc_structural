@@ -141,7 +141,7 @@ for (scenario in unique(dat$`Socio-Economic Scenario`)) {
 print("Version 2:")
 print(proc.time() - ptm)
 
-#stopifnot(sum((dat$discountrate != dat$discountrate2 & dat$`SCC Year` < 2200) | is.na(dat$discountrate) != is.na(dat$discountrate2)) == 0)
+stopifnot(sum(is.na(dat$discountrate) != is.na(dat$discountrate2) | (!is.na(dat$discountrate) & dat$discountrate != dat$discountrate2 & dat$`SCC Year` < 2200)) == 0)
 
 #
 # ## Develop scenarios list
