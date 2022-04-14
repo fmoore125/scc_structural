@@ -2,7 +2,7 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
     data.table, janitor, magrittr, fixest, kableExtra,
-    broom, tidyverse, tidylog, modelsummary
+    broom, tidyverse, tidylog, modelsummary, msm
 )
 options("tidylog.display" = NULL)
 `%notin%` = Negate(`%in%`)
@@ -42,7 +42,8 @@ mef_df = map_df(unique(mef_df),
                 function(x) {
                     tibble(
                         x = x,
-                        me = mean(mef_df[mef_df > x] - x, na.rm = T)
+                        me = mean(mef_df[mef_df > x] - x, na.rm = T),
+                        n = length(mef_df[mef_df > x])
                     )
                 })
 
@@ -51,7 +52,8 @@ mef_df_alt = map_df(unique(mef_df_alt),
                     function(x) {
                         tibble(
                             x = x,
-                            me = mean(mef_df_alt[mef_df_alt > x] - x, na.rm = T)
+                            me = mean(mef_df_alt[mef_df_alt > x] - x, na.rm = T),
+                            n = length(mef_df_alt[mef_df_alt > x])
                         )
                     })
 
@@ -107,6 +109,70 @@ ggplot() +
 
 ggsave("outputs/mean_excess_function.png", height = 10, width = 10)
 
+#############################
+#### TAIL INDEX ESTIMATES
+#############################
+
+## MEF(x) = sigma / (1-xi) + xi / (1-xi) * x
+## MEF =  alpha + beta * x
+## 1. Regress MEF on x
+## 2. Invert coefficient beta = xi / (1-xi) --> xi = beta / (1+beta)
+## 3. Tail index \equiv alpha = 1 / xi
+## 4. All moments > alpha are infinite
+
+
+results = list()
+results[[1]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .95)), 
+                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
+results[[2]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .90)), 
+                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
+results[[3]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .75)), 
+                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
+results[[4]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > 0), 
+                     weights = mef_df_alt$n[mef_df_alt$x > 0])
+results[[5]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .95)), 
+                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
+results[[6]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .90)), 
+                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
+results[[7]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > quantile(x, .75)), 
+                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
+results[[8]] = feols(me ~ x, 
+                     data = mef_df_alt |> filter(x > 0), 
+                     weights = mef_df_alt$n[mef_df_alt$x > 0])
+
+betas = lapply(results, function(x) coefficients(x)[2]) |> 
+    cbind() |> 
+    unlist()
+
+tail_index = round((betas + 1)/betas, 2)
+
+rows <- tribble(
+    ~term, ~"(1)", ~"(2)", ~"(3)", ~"(4)", ~"(5)", ~"(6)", ~"(7)", ~"(8)",
+    "Minimum Threshold Percentile", "95", "90", "75", "0", "95", "90", "75", "0", 
+    "Observational Weights", "Num. Obs.", "Num. Obs.", "Num. Obs.", "Num. Obs.", "1/Num. Obs.", "1/Num. Obs.", "1/Num. Obs.", "1/Num. Obs."
+)
+
+rows = rbind(rows, c("Estimated Tail Index", tail_index))
+
+msummary(results,
+         coef_map = c(
+             "x" = "Effect of Threshold on Mean Excess"
+         ),
+         gof_omit = "R2|AIC|BIC|Log.|Std.|FE:",
+         fmt = "%.3f",
+         stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+         add_rows = rows,
+         title = "Estimates of the Generalized Pareto Distribution shape parameter and tail index. \\label{tab:tail_index}",
+         notes = list("Standard errors are robust to heteroskedasticity. All estimates are from a sample that excludes Nordhaus (2019)"),
+         output = "outputs/tail_index.tex"
+)
 
 #############################
 #### Pr(tail | characteristic)
