@@ -177,8 +177,10 @@ msummary(results,
          add_rows = rows,
          title = "Estimates of the Mean Excess Function slope, the Generalized Pareto Distribution shape parameter, and tail index. \\label{tab:tail_index}",
          output = "latex"
-) %>%
-    footnote(general = "Standard errors are robust to heteroskedasticity. All estimates are from a sample that excludes Nordhaus (2019). Columns 1-4 weight observations of the mean excess by the number of SCC observations used to compute it. Columns 5-8 weight observations with the inverse.", threeparttable = TRUE) %>%
+) |> 
+    kable_styling() |> 
+    footnote(general = "Standard errors are robust to heteroskedasticity. All estimates are from a sample that excludes Nordhaus (2019). Columns 1-4 weight observations of the mean excess by the number of SCC observations used to compute it. Columns 5-8 weight observations with the inverse.", threeparttable = TRUE,
+             fixed_small_size = T) |> 
     save_kable(file = "outputs/tail_index.tex")
 
 #############################
