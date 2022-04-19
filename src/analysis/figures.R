@@ -3,6 +3,7 @@ library(data.table)
 library(ggridges)
 library(fixest)
 library(plyr)
+library(MetBrewer)
 
 dist=fread(file="outputs/distribution.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
@@ -64,22 +65,28 @@ distplot=dist[-which(dist$draw<quantile(dist$draw,0.01)|dist$draw>quantile(dist$
 distplot$type=dat$`Empirical Improvement or Sensitvity Analysis?`[distplot$row]
 distplot=distplot%>%filter(type!="Other"&year>2009)
 
+cols=met.brewer("Isfahan2",3,type="discrete")
+
 a=ggplot(distplot,aes(x=draw,y=type,group=type,fill=type))+geom_boxplot()+facet_grid(yeargroup~.)
 a=a+theme_bw()+theme(text=element_text(size=18),strip.background =element_rect(fill="white"),legend.position="none")
-a=a+labs(x="SCC ($ per ton CO2)",y="")
+a=a+labs(x="SCC ($ per ton CO2)",y="")+scale_fill_manual(values=cols)
 a
 
 #distributions of strucutral changes - with and without structural change
+
+#concatenate Carbon Cycle and Climate System changes into Earth System changes
+dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`==1,1.0,ifelse(dat$`Climate Model`==1,1.0,0)))
+
 struc=dat%>%
-  select("Carbon Cycle":"Learning")%>%
+  select("Earth System","Tipping Points":"Learning")%>%
   replace(is.na(.),0)
 
 diststruc=cbind(dist,struc[dist$row,])
 
-colnames(diststruc)[c(6:7,11)]=c("Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability")
+colnames(diststruc)[c(4:5,9)]=c("Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability")
 
 diststruc=diststruc%>%
-  pivot_longer(cols="Carbon Cycle":"Learning",names_to="StructuralChange",values_to="Presence")
+  pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
 
 diststruc$Presence=fct_collapse(diststruc$Presence,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))
 
@@ -91,7 +98,7 @@ diststrucdensities=diststruc%>%
   rename(logscc=x)
 
 #find rows with no structural changes at all for "reference" density
-reference=which(apply(struc,MARGIN=1,FUN=function(x) sum(x=="0"))==10)
+reference=which(apply(struc,MARGIN=1,FUN=function(x) sum(x=="0"))==9)
 referencedensity=diststruc%>%
   filter(row%in%reference&draw>0)%>%
   mutate(logscc=log(draw))%>%
@@ -105,7 +112,7 @@ referencedensity=referencedensity[,c(7,1:6)]
 diststrucdensities$type="Changed";referencedensity$type="Reference"
 diststrucdensities=dplyr::bind_rows(diststrucdensities,referencedensity)
 
-diststrucdensities$StructuralChange=ordered(diststrucdensities$StructuralChange,levels=rev(c("Carbon Cycle","Climate Model" , "Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning" ,"Ambiguity/Model Uncertainty")))
+diststrucdensities$StructuralChange=ordered(diststrucdensities$StructuralChange,levels=rev(c("Earth System" , "Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning" ,"Ambiguity/Model Uncertainty")))
 
 #add number of papers and number of observations
 diststruc$paper=dat$ID_number[diststruc$row]
