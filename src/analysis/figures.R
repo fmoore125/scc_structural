@@ -75,7 +75,7 @@ a
 #distributions of strucutral changes - with and without structural change
 
 #concatenate Carbon Cycle and Climate System changes into Earth System changes
-dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`==1,1.0,ifelse(dat$`Climate Model`==1,1.0,0)))
+dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`=="1.0",1.0,ifelse(dat$`Climate Model`=="1.0",1.0,0)))
 
 struc=dat%>%
   select("Earth System","Tipping Points":"Learning")%>%
@@ -88,7 +88,7 @@ colnames(diststruc)[c(4:5,9)]=c("Tipping Points: Climate","Tipping Points: Damag
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
 
-diststruc$Presence=fct_collapse(diststruc$Presence,No=c("-1.0","0"),Yes=c("1.0","Calibrated"))
+diststruc$Presence=fct_collapse(diststruc$Presence,No=c("-1.0","0"),Yes=c("1.0","Calibrated",1))
 
 diststrucdensities=diststruc%>%
   group_by(StructuralChange)%>%
