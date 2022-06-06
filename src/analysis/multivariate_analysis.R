@@ -15,6 +15,7 @@ source("src/data_cleaining_scripts/cleaning_master.R")
 
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
 
+
 struc=dat%>%
   select("Carbon Cycle":"Learning")%>%
   replace(is.na(.),0)

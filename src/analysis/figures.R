@@ -4,12 +4,44 @@ library(ggridges)
 library(fixest)
 library(plyr)
 library(MetBrewer)
+library(lfe)
+library(forcats)
 
 dist=fread(file="outputs/distribution.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted.csv")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
+
+#make plot of distribution taking out different sources of varition
+#1. take out means
+dist_demeaned=dist$draw-mean(dist$draw)
+#2 take out paper fixed-effects
+dist$paper=dat$ID_number[dist$row]
+femod=felm(draw~1|paper,data=dist)
+dist_paperfe=femod$residuals
+#3. take out row fixed-effects
+femod_row=felm(draw~1|row,data=dist)
+dist_rowfe=femod_row$residuals
+
+#plot the quantiles of the distributions
+relprobs=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
+
+quants=data.frame(Demeaned=quantile(dist_demeaned,relprobs),PaperFE=quantile(dist_paperfe,relprobs),RowFE=quantile(dist_rowfe,relprobs))
+quants$probs=relprobs
+quants=pivot_longer(quants,cols=1:3,names_to="Model",values_to="Quantiles")
+quants$Model=fct_recode(quants$Model,'De-Meaned'="Demeaned",'Paper Means Removed'="PaperFE","Observables Removed"="RowFE")
+
+a=ggplot(quants,aes(x=Model,y=Quantiles))
+a=a+geom_hline(yintercept = 0,lty=3)
+temp=quants%>%filter(probs%in%c(0.05,0.95))%>%pivot_wider(id_cols = Model,names_from=probs,values_from=Quantiles)
+colnames(temp)=c("Model","Start","End")
+a=a+geom_segment(aes(y=Start,yend=End,xend=Model),data=temp,lwd=1.25)
+temp=quants%>%filter(probs%in%c(0.25,0.75))%>%pivot_wider(id_cols = Model,names_from=probs,values_from=Quantiles)
+colnames(temp)=c("Model","Start","End")
+a=a+geom_rect(aes(ymin=Start,ymax=End),data=temp,xmin=c(0.75,1.75,2.75),xmax=c(1.25,2.25,3.25),inherit.aes=FALSE,fill="#3d427b",color=NA)
+a=a+geom_segment(data=quants%>%filter(probs==0.5),x=c(0.75,1.75,2.75),xend=c(1.25,2.25,3.25),aes(yend=Quantiles),col="#edc123",lwd=1.5)
+a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(text=element_text(size=18))
 
 dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
