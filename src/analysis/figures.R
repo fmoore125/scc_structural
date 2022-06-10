@@ -6,6 +6,7 @@ library(plyr)
 library(MetBrewer)
 library(lfe)
 library(forcats)
+library(zoo)
 
 dist=fread(file="outputs/distribution.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
@@ -43,6 +44,7 @@ a=a+geom_rect(aes(ymin=Start,ymax=End),data=temp,xmin=c(0.75,1.75,2.75),xmax=c(1
 a=a+geom_segment(data=quants%>%filter(probs==0.5),x=c(0.75,1.75,2.75),xend=c(1.25,2.25,3.25),aes(yend=Quantiles),col="#edc123",lwd=1.5)
 a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(text=element_text(size=18))
 
+#full distribution
 dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
 dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
@@ -75,6 +77,25 @@ x11()
 a
 
 #different figure looking at publication date
+dist$pubyear=dat$Year[dist$row]
+distshort=dist%>%filter(yeargroup%in%c('2010-2030',"2030-2070"))%>%
+  group_by(yeargroup,pubyear)%>%dplyr::summarize(mean=mean(draw,na.rm=T),median=quantile(draw,0.5,na.rm=T),lower_25=quantile(draw,0.25,na.rm=T),upper_25=quantile(draw,0.75,na.rm=T),lower_5=quantile(draw,0.05,na.rm=T),upper_5=quantile(draw,0.95,na.rm=T))
+
+distshort=pivot_longer(distshort,cols=3:8,names_to="Stats",values_to="SCC")
+distshort$Stats=factor(distshort$Stats,levels=c("mean","lower_5","lower_25","median","upper_25","upper_5"))
+
+distshort=distshort%>%group_by(Stats,yeargroup)%>%dplyr::arrange(pubyear)%>%mutate(rollingSCC=zoo::rollmean(SCC,5,fill="extend"))
+
+#just for purposes of plotting - replace negative values with 1
+distshort$rollingSCC[which(distshort$rollingSCC<0)]=1
+
+breaks_ln=c(0,2,4,6)
+b=ggplot(distshort,aes(x=pubyear,y=log(rollingSCC)))+geom_line(aes(lty=Stats),data=distshort%>%filter(Stats!="mean"))+facet_wrap(~yeargroup,ncol=1)
+b=b+scale_linetype_manual(values=c(3,2,1,2,3),guide=FALSE)+theme_bw()+labs(x="Publication Year",y="SCC ($ per ton CO2)")
+b=b+scale_y_continuous(limits=c(-1,7),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln),10)))
+b=b+geom_line(data=distshort%>%filter(Stats=="mean"),lwd=1.25,col="#f0aa3d")
+b=b+theme(strip.background =element_rect(fill="white"))
+b
 
 #downsample distribution so avoid crashing computer
 library(ggridges)
