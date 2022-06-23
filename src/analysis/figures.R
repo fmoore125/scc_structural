@@ -60,7 +60,7 @@ a
 #look at differences in distribution for "Sensitivity Analysis" vs "Empirical Improvement / Framework Expansion
 dat$`Empirical Improvement or Sensitvity Analysis?`=fct_collapse(dat$`Empirical Improvement or Sensitvity Analysis?`,"Empirical Improvement"=c("Empirical improvement","Empirical Improvement","Empriical Improvement"),"Sensitvity Analysis"=c("Sensitivity analysis","Sensitivity Analysis"))
 
-distplot=dist[-which(dist$draw<quantile(dist$draw,0.01)|dist$draw>quantile(dist$draw,0.99)|dist$year<=2010|is.na(dist$year)),]
+distplot=dist[-which(dist$draw<quantile(dist$draw,0.01)|dist$draw>quantile(dist$draw,0.99)|dist$year<=2010|dist$year>2100|is.na(dist$year)),]
 distplot$type=dat$`Empirical Improvement or Sensitvity Analysis?`[distplot$row]
 distplot=distplot%>%filter(type!="Other"&year>2009)
 
