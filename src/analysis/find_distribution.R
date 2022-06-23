@@ -12,8 +12,8 @@
 ## 1. If only a central value is given, all draws match it.
 ##
 ## 2. If only min & max, or only min, max, and central are given, it
-##    is assumed to be a uniform distribution over those 2 or 3
-##    values.
+##    is assumed to be a triangular distribution with the given
+##    extreme values.
 ##
 ## 3. If a min or max is given, the distribution is bottom- or
 ##    top-coded with that value.
@@ -30,22 +30,31 @@
 ##    assumed to be either a Skew normal or a exponentially modified
 ##    normal, whichever produces a better fit.
 ##
-## 7. Otherwise, the distribution is assumed to be a mixture of up to
-##    k - 2 Gaussians, where k is the number of fitting values.
+## 7. Otherwise, if `allow.mixed` is true, the distribution is assumed
+##    to be a mixture of up to k - 2 Gaussians, where k is the number
+##    of fitting values. If `allow.mixed` is false, a skew-normal or
+##    exponentially modified normal fit is attempted.
 ##
 ## 8. If cases 3 - 7 are used, an alternnative model consisting of a
 ##    piecewise uniform distribution with weights from the spans
-##    between quantiles is tried as an alternative, and the
-##    best-scoring distribution is returned.
+##    between quantiles, combined with a fitted tail distribution, is
+##    tried as an alternative, and the best-scoring distribution is
+##    returned.
 
 library(sn)
+library(EnvStats)
+
+allow.mixed <- F
 
 ##### Checks for special cases
 
 ## Discrete distributions
 
 is.one.value <- function(mu, qs, as)
-    (!is.na(mu) && length(qs) == 0) || (length(qs) == 1 && qs == .5 && (is.na(mu) || mu == as))
+(!is.na(mu) && length(qs) == 0) || (length(qs) == 1 && (is.na(mu) || mu == as)) ||
+    ((is.na(mu) || mu == as[1]) && min(qs) == 0 && max(qs) == 1 && diff(as) == 0)
+
+
 
 is.two.values <- function(mu, qs, as) {
     if (length(qs) == 2 && any(qs == 0) && any(qs == 1))
@@ -111,27 +120,64 @@ generate.pdf <- function(mu, qs, as, N) {
         return(NULL)
     }
 
-    ## Discrete distributions
+    ## Simple distributions
 
     if (is.one.value(mu, qs, as)) {
         last.solution <<- "delta"
         return(rep(get.central(mu, qs, as), N))
     }
 
-    if (is.two.values(mu, qs, as)) {
-        last.solution <<- "discrete"
-        return(runif(N, as[1], as[2]))
-    }
-
-    if (is.three.values(mu, qs, as)) {
-        last.solution <<- "discrete"
-        med <- get.central(mu, qs, as)
-        return(c(runif(N / 2, as[qs == 0], med), runif(N / 2, med, as[qs == 1])))
+    if (is.two.values(mu, qs, as) || is.three.values(mu, qs, as)) {
+        last.solution <<- "triangle"
+        central <- get.central(mu, qs, as)
+        if (central == as[qs == 0] || central == as[qs == 1]) {
+            if (central == as[qs == 0])
+                return(rtri(N, as[qs == 0], as[qs == 1], central + 1e-6))
+            else if (central == as[qs == 1])
+                return(rtri(N, as[qs == 0], as[qs == 1], central - 1e-6))
+        } else
+            return(rtri(N, as[qs == 0], as[qs == 1], central))
     }
 
     values <- generate.general.pdf(mu, qs, as, N)
 
     ## Try piecewise uniform as a backup
+    values.alt <- generate.piecewise.pdf(mu, qs, as, N)
+    if (!is.null(values.alt)) {
+        score <- score.dist.draws(mu, qs, as, values)
+        score.alt <- score.dist.draws(mu, qs, as, values.alt)
+        if (score.alt < score) {
+            if (is.bounded(qs))
+                last.solution <<- "piecewise bounded"
+            else {
+                ## Estimate best tail
+                if (min(qs) > 0) {
+                    left.fit <- fit.left.tail(mu, qs, as)
+                    values.alt[values.alt < min(as)] <- generate.left.tail.pdf(left.fit, sum(values.alt < min(as)), min(as))
+                } else {
+                    values.alt[values.alt < min(as)] <- min(as)
+                    left.fit <- list(type='bound')
+                }
+
+                if (min(qs) < 1) {
+                    right.fit <- fit.right.tail(mu, qs, as)
+                    values.alt[values.alt > max(as)] <- generate.right.tail.pdf(right.fit, sum(values.alt > max(as)), max(as))
+                } else {
+                    values.alt[values.alt > max(as)] <- max(as)
+                    right.fit <- list(type='bound')
+                }
+
+                last.solution <<- paste0("piecewise ", left.fit$type, "-", right.fit$type)
+            }
+            values <- values.alt
+        }
+    }
+
+    values
+}
+
+## Always produces bounded tails
+generate.piecewise.pdf <- function(mu, qs, as, N) {
     qs2 <- qs
     as2 <- as
     if (!is.na(mu) && !any(qs == .5)) {
@@ -139,62 +185,32 @@ generate.pdf <- function(mu, qs, as, N) {
         as2 <- c(as2, mu)
     }
 
-    if (length(qs2) > 1) {
-        values.alt <- generate.piecewise.pdf(qs2, as2, N)
-        if (!is.null(values.alt)) {
-            score <- score.dist.draws(mu, qs, as, values)
-            score.alt <- score.dist.draws(mu, qs, as, values.alt)
-            if (score.alt < score) {
-                if (is.bounded(qs))
-                    last.solution <<- "piecewise bounded"
-                else
-                    last.solution <<- "piecewise exp-tail"
-                values <- values.alt
-            }
-        }
-    }
-
-    values
-}
-
-generate.piecewise.pdf <- function(qs, as, N) {
-    as <- as[order(qs)]
-    qs <- sort(qs)
-
-    if (any(as != sort(as)))
+    if (length(qs2) <= 1)
         return(NULL)
 
-    if (is.bounded(qs)) {
-        if (qs[1] != 0)
-            qs[1] <- 0
-        if (qs[length(qs)] != 1)
-            qs[length(qs)] <- 1
-        lambda <- Inf
-    } else {
-        ## Approximate the exponential decay
-        ## cdf.y = 1 - exp(-lambda x)
-        ## 1 - cdf.y = exp(-lambda x)
-        log.flip.cdf.y <- log(1 - qs)
-        mod <- lm(log.flip.cdf.y ~ as)
-        lambda <- abs(mod$coeff[2])
-        if (is.na(lambda))
-            lambda <- 1 # Why not?
+    as2 <- as2[order(qs2)]
+    qs2 <- sort(qs2)
+
+    if (any(as2 != sort(as2)))
+        return(NULL)
+
+    if (is.bounded(qs2)) {
+        if (qs2[1] != 0)
+            qs2[1] <- 0
+        if (qs2[length(qs2)] != 1)
+            qs2[length(qs2)] <- 1
     }
 
     quants <- runif(N)
     values <- rep(NA, N)
-    below <- quants < qs[1]
-    if (any(below))
-        values[below] <- as[1] - rexp(sum(below), lambda)
-    for (ii in 2:length(qs)) {
-        within <- quants >= qs[ii-1] & quants < qs[ii]
-        values[within] <- runif(sum(within), as[ii-1], as[ii])
+    below <- quants < qs2[1]
+    values[below] <- as2[1]
+    for (ii in 2:length(qs2)) {
+        within <- quants >= qs2[ii-1] & quants < qs2[ii]
+        values[within] <- runif(sum(within), as2[ii-1], as2[ii])
     }
-    above <- quants >= qs[length(qs)]
-    if (lambda == Inf)
-        values[above] <- as[length(as)]
-    else
-        values[above] <- as[length(as)] + rexp(sum(above), lambda)
+    above <- quants >= qs2[length(qs2)]
+    values[above] <- as2[length(as2)]
 
     values
 }
@@ -278,7 +294,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
         return(rnorm(N, mu, sigma))
     }
 
-    if (is.skewnormal(mu, qs, as)) {
+    if (is.skewnormal(mu, qs, as) || !allow.mixed) {
         ## xi = 0, omega = 1, alpha = 1
         ## mu = 0.5627814
         ## qs = c(.1, .75)
@@ -398,6 +414,147 @@ generate.general.pdf <- function(mu, qs, as, N) {
     c(values, rnorm(N - length(values), mus[1], sigmas[1]))
 }
 
+fit.distribution <- function(init, qdist, mudist, mu, qs, as) {
+    if (!is.null(mudist)) {
+        optim(init, function(params) {
+            as.fit <- qdist(qs, params)
+            if (is.null(as.fit))
+                return(Inf)
+            score.dist(mu, mudist(params), as, as.fit)
+        })
+    } else {
+        optim(init, function(params) {
+            as.fit <- qdist(qs, params)
+            if (is.null(as.fit))
+                return(Inf)
+            score.dist(mu, NA, as, as.fit)
+        })
+    }
+}
+
+fit.gaussian <- function(mu, qs, as) {
+    if (!is.na(mu)) {
+        result <- fit.distribution(c(mu, abs(mu)), function(qs, params) {
+            qnorm(qs, params[1], abs(params[2]))
+        }, function(params) {
+            params[1]
+        }, mu, qs, as)
+    } else {
+        result <- fit.distribution(c(mean(as), abs(mean(as))), function(qs, params) {
+            qnorm(qs, params[1], abs(params[2]))
+        }, NULL, mu, qs, as)
+    }
+
+    if (result$par[2] < 0)
+        result$par[2] <- 0
+
+    result
+}
+
+## Fit tail distribution(s)
+fit.right.tail <- function(mu, qs, as) {
+    aboves <- as > get.central(mu, qs, as) | qs > .5
+    if (sum(aboves) == 0) {
+        ## No tail information: Fit Gaussian to whole
+        result <- fit.gaussian(mu, qs, as)
+        return(list('type'='gaussian', 'params'=result$par, 'score'=result$val))
+    }
+
+    if (sum(aboves) > 2)
+        mu.include <- NA
+    else
+        mu.include <- get.central(mu, qs, as)
+
+    ## Gaussian
+    result <- fit.gaussian(mu.include, qs[aboves], as[aboves])
+    best.fit <- list('type'='gaussian', 'params'=result$par, 'score'=result$val)
+
+    if (sum(aboves) >= 1) {
+        init <- c(ifelse(is.na(mu.include), mean(as), mu.include), max(as))
+        if (diff(init) > 0) {
+            result <- fit.distribution(init, function(qs, params) {
+                if (params[1] > params[2])
+                    return(NULL)
+                qtri(qs, params[1] - diff(params), params[2], params[1])
+            }, function(params) {
+                params[1]
+            }, mu.include, qs[aboves], as[aboves])
+
+            if (result$val < best.fit$score && result$par[2] > max(as)) # Ensure that can draw above max
+                best.fit <- list('type'='triangle', 'params'=result$par, 'score'=result$val)
+        }
+
+        ## Limit to above median (drop above means)
+        as2 <- as[qs > .5]
+        qs2 <- qs[qs > .5]
+        if ((length(as2) + !is.na(mu.include)) > 2) {
+            log.flip.cdf.y <- log(1 - qs2)
+            mod <- lm(log.flip.cdf.y ~ as2)
+            lambda <- abs(mod$coeff[2])
+            if (is.na(lambda))
+                lambda <- 1 # Why not?
+
+            result <- fit.distribution(c(ifelse(is.na(mu.include), mean(as2), mu.include), lambda), function(qs2, params) {
+                params[1] + qexp(1 - 2*(1 - qs2), abs(params[2]))
+            }, function(params) {
+                params[1]
+            }, mu.include, qs2, as2)
+
+            if (result$val < best.fit$score)
+                best.fit <- list('type'='exponential', 'params'=result$par, 'score'=result$val)
+        }
+    }
+
+    best.fit
+}
+
+fit.left.tail <- function(mu, qs, as) {
+    best.fit <- fit.right.tail(-mu, 1 - qs, -as)
+    if (best.fit$type == 'gaussian')
+        best.fit$params[1] <- -best.fit$params[1]
+    else if (best.fit$type == 'triangle')
+        best.fit$params <- -best.fit$params
+    else if (best.fit$type == 'exponential')
+        best.fit$params[1] <- -best.fit$params[1]
+
+    best.fit
+}
+
+## Generate values from tail distributions
+generate.right.tail.pdf <- function(right.fit, N, maxas) {
+    if (is.null(right.fit))
+        return(rep(maxas, N))
+    if (right.fit$type == 'gaussian')
+        values <- rnorm(1e4, right.fit$params[1], right.fit$params[2])
+    else if (right.fit$type == 'triangle')
+        values <- rtri(1e4, right.fit$params[1] - diff(right.fit$params), right.fit$params[2], right.fit$params[1])
+    else if (right.fit$type == 'exponential')
+        values <- right.fit$params[1] + rexp(1e4, abs(right.fit$params[2]))
+
+    values <- values[values > maxas]
+    if (length(values) < N)
+        values <- c(values, generate.right.tail.pdf(right.fit, N - length(values), maxas))
+
+    values[1:N]
+}
+
+generate.left.tail.pdf <- function(left.fit, N, minas) {
+    if (is.null(left.fit))
+        return(rep(minas, N))
+    if (left.fit$type == 'gaussian')
+        values <- rnorm(1e4, left.fit$params[1], left.fit$params[2])
+    else if (left.fit$type == 'triangle')
+        values <- rtri(1e4, left.fit$params[2], left.fit$params[1] - diff(left.fit$params), left.fit$params[1])
+    else if (left.fit$type == 'exponential')
+        values <- left.fit$params[1] - rexp(1e4, abs(left.fit$params[2]))
+
+    values <- values[values < minas]
+    if (length(values) < N)
+        values <- c(values, generate.left.tail.pdf(left.fit, N - length(values), minas))
+
+    values[1:N]
+}
+
 ## Score a proposed distribution against the data
 score.dist <- function(mu.true, mu.pred, as.true, as.pred) {
     if (is.na(mu.true))
@@ -470,4 +627,22 @@ if (F) {
     mu <- 100
 
     validate.pdf(mu, qs, as)
+
+    ## Test tail fits
+
+    ## Fit Gaussian tails
+    fit.right.tail(3, c(.1, .25, .75, .9), qnorm(c(.1, .25, .75, .9), 3, 2))
+    fit.left.tail(3, c(.1, .25, .75, .9), qnorm(c(.1, .25, .75, .9), 3, 2))
+
+    ## Fit exponential tails
+    qq <- seq(0, 1, length.out=100)
+    aa <- c(3 - qexp(1 - 2*qq[1:50], .5), 3 + qexp(1 - 2*(1 - qq[51:100]), .5))
+    plot(aa, qq)
+
+    fit.right.tail(3, c(.1, .25, .75, .9), c(3 - qexp(c(.8, .5), .5), 3 + qexp(c(.5, .8), .5)))
+    fit.left.tail(3, c(.1, .25, .75, .9), c(3 - qexp(c(.8, .5), .5), 3 + qexp(c(.5, .8), .5)))
+
+    ## Fit triangular tails
+    fit.right.tail(3, c(.1, .25, .75, .9), qtri(c(.1, .25, .75, .9), 0, 6, 3))
+    fit.left.tail(3, c(.1, .25, .75, .9), qtri(c(.1, .25, .75, .9), 0, 6, 3))
 }

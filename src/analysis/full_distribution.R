@@ -7,6 +7,16 @@ library(viridisLite)
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+if (F) {
+    ## Make table of available quantiles
+    tbl <- data.frame()
+    for (col in which(names(dat) == 'Min'):which(names(dat) == 'Max')) {
+        tbl <- rbind(tbl, data.frame(quantile=names(dat)[col], count=sum(!is.na(dat[, col])), percent=paste0(round(mean(!is.na(dat[, col])) * 100, 1), '%')))
+    }
+    library(xtable)
+    print(xtable(tbl), include.rownames=F)
+}
+
 set.seed(12345)
 
 coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
@@ -28,13 +38,13 @@ for (ii in 1:nrow(dat)) {
   if (is.na(mu) && length(qs) == 0) {
     next
   }
-  
+
   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 }
 dat$ID_number=as.integer(dat$ID_number)
 papers=unique(dat$ID_number)
 
-#set both to false for unweighted distribution, set one to false and the other to true for 
+#set both to false for unweighted distribution, set one to false and the other to true for
 weighting_coauthors=FALSE
 weighting_citations=FALSE
 
@@ -44,11 +54,11 @@ dist=matrix(nrow=nsamp,ncol=2)
 for(i in 1:nsamp){
   if(i%in% c(1211,1216)) next
   if(i%%10000==0) print(i)
-  
+
   if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
   if(weighting_coauthors==TRUE&weighting_citations==FALSE) paper=sample(coauthorweights$ID_number,1,prob=coauthorweights$prob) #weigthing is inversely proportional to degree of shared authorship
   if(weighting_coauthors==FALSE&weighting_citations==TRUE) paper=sample(citationweights$ID_number,1,prob=citationweights$prob) #weigthing is proportional to citations
-  
+
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
   if(paper==2883) rows=rows[-which(rows%in%c(1211,1216))] #remove two problematic rows temporarily
