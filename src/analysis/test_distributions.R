@@ -20,7 +20,7 @@ for (ii in 1:nrow(dat)) {
 
     values <- generate.pdf(mu, qs, as, 1e6)
     if (is.null(values)) {
-        result <- rbind(results, data.frame(ii, central=NA, score=NA, solution=last.solution))
+        results <- rbind(results, data.frame(ii, central=NA, score=NA, solution=last.solution))
         next
     }
 
