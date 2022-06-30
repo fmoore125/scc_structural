@@ -46,13 +46,13 @@ papers=unique(dat$ID_number)
 
 #set both to false for unweighted distribution, set one to false and the other to true for
 weighting_coauthors=FALSE
-weighting_citations=FALSE
+weighting_citations=TRUE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
 
 for(i in 1:nsamp){
-  if(i%in% c(1211,1216)) next
+  #if(i%in% c(1211,1216)) next
   if(i%%10000==0) print(i)
 
   if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
@@ -69,9 +69,9 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution.csv")
-if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted.csv")
-if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted.csv")
+if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2.csv")
+if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted_v2.csv")
+if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted_v2.csv")
 
 
 #make some figures analyzing variance in distribution
