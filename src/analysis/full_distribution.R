@@ -117,16 +117,18 @@ dist_struc=pivot_longer(dist,cols='Carbon Cycle':'Learning',names_to="Structural
 a=ggplot(dist_struc[which(dist_struc$draw>quantile(dist_struc$draw,0.01)&dist_struc$draw<quantile(dist_struc$draw,0.99)),],aes(x=draw,y=Changed))+
   geom_density_ridges(bandwidth=2)+facet_wrap(~StructuralChange)+theme_bw()+labs(x="SCC ($ per ton CO2)",y="Change Present?")
 
-#identify high-leverage papers - how much does mean change if paper is dropped?
+#identify high-leverage papers - how much does mean change if paper is dropped? For 2010-2030 period
+
+'%notin%'=Negate('%in%')
 
 meanchange=numeric(length=length(papers))
-meanval=mean(dist$draw)
+meanval=dist%>%filter(year%in%2010:2030)%>%dplyr::summarize(mean(draw))
 for(i in 1:length(meanchange)){
   print(i)
   rows=which(dat$ID_number==papers[i])
-  meanchange[i]=((mean(dist$draw[-which(dist$row%in%rows)])-meanval)/meanval)*100
+  meanchange[i]=dist%>%filter(year%in%2010:2030&row%notin%rows)%>%summarize(mean(draw)-meanval)
 }
-meanchange=data.frame(ID_number=papers,change=meanchange)
+meanchange=data.frame(ID_number=papers,change=unlist(meanchange))
 
 bibs=dat%>%
   select(ID_number,Reference)%>%
@@ -143,15 +145,15 @@ mc=mc[1:15,]
 
 mc$Short.Reference=ordered(mc$Short.Reference,levels=as.character(mc$Short.Reference))
 
-a=ggplot(mc,aes(y=change,x=Short.Reference,fill=Description))+geom_bar(stat="identity")
+a=ggplot(mc,aes(y=change,x=Short.Reference))+geom_bar(stat="identity")
 a=a+theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+labs(x="",y="Change in Mean SCC After Dropping Paper ($)",fill="Paper Focus")
-a=a+scale_fill_manual(values=c("#335361","#4ec1a2","#c46692","#f57d51"))
+#a=a+scale_fill_manual(values=c("#335361","#4ec1a2","#c46692","#f57d51"))
 a
 ###----compare distributions with and without co-author weighting ---------------
 
-dist=fread(file="outputs/distribution.csv")
-dist_weighted=fread(file="outputs/distribution_coauthorweighted.csv")
-dist_weighted_citations=fread(file="outputs/distribution_citationweighted.csv")
+dist=fread(file="outputs/distribution_v2.csv")
+dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
+dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 
 #compare quantiles
 breaks=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
