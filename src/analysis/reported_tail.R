@@ -3,6 +3,8 @@ setwd("~/research/scciams/scc_structural")
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+## Based on https://link.springer.com/article/10.1007/s42519-020-00114-7#Sec3
+
 get.hill <- function(qs, as) {
     aboves <- (as > get.central(mu, qs, as) | qs > .5) & qs < 1
 
@@ -68,3 +70,26 @@ for (ii in 1:nrow(dat)) {
     results <- rbind(results, cbind(ii=ii, soln))
 }
 
+source("src/analysis/all_scc_lib.R")
+df <- multivar.prep(dat)
+
+df$log.scc.2020usd <- log(df$`Central Value ($ per ton CO2)`)
+df$log.scc.2020usd[!is.finite(df$log.scc.2020usd)] <- NA
+
+df$`Earth System` <- "0"
+df$`Earth System`[paste(df$`Carbon Cycle`, df$`Climate Model`) != "0 0"] <- "1.0"
+
+struccols <- sapply(c("Backstop Price?", "Other Market Failure?", "Market Only Damages", "Ambiguity/Model Uncertainty", "Earth System", "Tipping Points", "Tipping Points2", "Epstein-Zin", "Inequality Aversion", "Learning", "Limitedly-Substitutable Goods", "Persistent / Growth Damages", "Alternative ethical approaches"), function(col) which(names(df) == col))
+weights <- get.struct.weights(df, struccols)
+
+names(df)[names(df) == 'Tipping Points'] <- "Climate Tipping Point"
+names(df)[names(df) == 'Tipping Points2'] <- "Damages Tipping Point"
+
+
+library(lfe)
+mod <- felm(log.scc.2020usd ~ `Backstop Price?` + `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=df, weights=weights)
+
+df$tailindex <- NA
+df$tailindex[results$ii] <- results$xi
+
+mod <- felm(tailindex ~ discountrate + `Epstein-Zin` + `Inequality Aversion` + `Alternative ethical approaches`, data=df, weights=weights) # `Persistent / Growth Damages` + `Limitedly-Substitutable Goods` + `Learning` + `Damages Tipping Point` + `Climate Tipping Point` + `Earth System` + `Ambiguity/Model Uncertainty` + `Other Market Failure?` + `Backstop Price?` +
