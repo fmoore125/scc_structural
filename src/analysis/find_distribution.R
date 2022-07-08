@@ -215,6 +215,53 @@ generate.piecewise.pdf <- function(mu, qs, as, N) {
     values
 }
 
+## Handle skew-normal and exp-modified normal cases
+generate.skewnormal.pdf <- function(mu, qs, as, N) {
+    ## xi = 0, omega = 1, alpha = 1
+    ## mu = 0.5627814
+    ## qs = c(.1, .75)
+    ## as = c(-0.4772229, 1.1075878)
+    if (!is.na(mu) && any(qs == .5) && as[qs == .5] != mu) {
+        xi0 <- as[qs == .5]
+        omega0 <- abs(mu - xi0)
+        alpha0 <- sign(mu - xi0)
+    } else {
+        xi0 <- ifelse(!is.na(mu), mu, as[qs == .5])
+        omega0 <- max(abs(as[qs != .5] - mu))
+        alpha0 <- 0
+    }
+    ## Try skew normal
+    result1 <- optim(c(xi0, omega0, alpha0), function(params) {
+        delta <- params[3] / sqrt(1 + params[3]^2)
+        mu.pred <- params[1] + abs(params[2]) * delta * sqrt(2 / pi)
+        as.pred <- tryCatch({
+            qsn(qs, params[1], abs(params[2]), params[3])
+        }, error=function(e) {
+            NA * qs
+        })
+        score.dist(mu, mu.pred, as, as.pred)
+    })
+    ## Try exponentially modified Gaussian distribution
+    result2 <- optim(c(xi0, omega0, 1), function(params) {
+        mu.pred <- params[1] + 1 / abs(params[3])
+        as1 <- qnorm(qs, params[1], abs(params[2])) + qexp(.5, abs(params[3]))
+        as2 <- qnorm(.5, params[1], abs(params[2])) + qexp(qs, abs(params[3]))
+        as.pred <- (as1 + as2) / 2
+        score.dist(mu, mu.pred, as, as.pred)
+    })
+    ## Re-evaluate result2's score
+    result2.draws <- rnorm(1e6, result2$par[1], abs(result2$par[2])) + rexp(1e6, abs(result2$par[3]))
+    result2$value <- score.dist.draws(mu, qs, as, result2.draws)
+
+    if (result1$value < result2$value) {
+        last.solution <<- "skew-normal"
+        return(rsn(N, result1$par[1], result1$par[2], result1$par[3]))
+    } else {
+        last.solution <<- "exp-normal"
+        return(rnorm(N, result2$par[1], abs(result2$par[2])) + rexp(N, abs(result2$par[3])))
+    }
+}
+
 ## Handle general cases
 generate.general.pdf <- function(mu, qs, as, N) {
     ## Truncated distributions
@@ -295,49 +342,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
     }
 
     if (is.skewnormal(mu, qs, as) || !allow.mixed) {
-        ## xi = 0, omega = 1, alpha = 1
-        ## mu = 0.5627814
-        ## qs = c(.1, .75)
-        ## as = c(-0.4772229, 1.1075878)
-        if (!is.na(mu) && any(qs == .5) && as[qs == .5] != mu) {
-            xi0 <- as[qs == .5]
-            omega0 <- abs(mu - xi0)
-            alpha0 <- sign(mu - xi0)
-        } else {
-            xi0 <- ifelse(!is.na(mu), mu, as[qs == .5])
-            omega0 <- max(abs(as[qs != .5] - mu))
-            alpha0 <- 0
-        }
-        ## Try skew normal
-        result1 <- optim(c(xi0, omega0, alpha0), function(params) {
-            delta <- params[3] / sqrt(1 + params[3]^2)
-            mu.pred <- params[1] + abs(params[2]) * delta * sqrt(2 / pi)
-            as.pred <- tryCatch({
-                qsn(qs, params[1], abs(params[2]), params[3])
-            }, error=function(e) {
-                NA * qs
-            })
-            score.dist(mu, mu.pred, as, as.pred)
-        })
-        # Try exponentially modified Gaussian distribution
-        result2 <- optim(c(xi0, omega0, 1), function(params) {
-            mu.pred <- params[1] + 1 / abs(params[3])
-            as1 <- qnorm(qs, params[1], abs(params[2])) + qexp(.5, abs(params[3]))
-            as2 <- qnorm(.5, params[1], abs(params[2])) + qexp(qs, abs(params[3]))
-            as.pred <- (as1 + as2) / 2
-            score.dist(mu, mu.pred, as, as.pred)
-        })
-        ## Re-evaluate result2's score
-        result2.draws <- rnorm(1e6, result2$par[1], abs(result2$par[2])) + rexp(1e6, abs(result2$par[3]))
-        result2$value <- score.dist.draws(mu, qs, as, result2.draws)
-
-        if (result1$value < result2$value) {
-            last.solution <<- "skew-normal"
-            return(rsn(N, result1$par[1], result1$par[2], result1$par[3]))
-        } else {
-            last.solution <<- "exp-normal"
-            return(rnorm(N, result2$par[1], abs(result2$par[2])) + rexp(N, abs(result2$par[3])))
-        }
+        return(generate.skewnormal.pdf(mu, qs, as, N))
     }
 
     ## Estimate general mixture of Gaussians
@@ -591,7 +596,7 @@ get.central <- function(mu, qs, as) {
 }
 
 ## Return a data frame with validation checks
-validate.pdf <- function(mu, qs, as) {
+validate.pdf <- function(mu, qs, as, generate.pdf.func=generate.pdf) {
     draws <- generate.pdf(mu, qs, as, 1e6)
     data.frame(metric=c('mean', qs), desired=c(mu, as), observed=c(mean(draws), quantile(draws, qs)))
 }
@@ -645,4 +650,9 @@ if (F) {
     ## Fit triangular tails
     fit.right.tail(3, c(.1, .25, .75, .9), qtri(c(.1, .25, .75, .9), 0, 6, 3))
     fit.left.tail(3, c(.1, .25, .75, .9), qtri(c(.1, .25, .75, .9), 0, 6, 3))
+
+    ## Test skewnormal
+    validate.pdf(10, c(.025, .975), c(0, 100), generate.skewnormal.pdf)
+    validate.pdf(50, c(.025, .975), c(0, 100), generate.skewnormal.pdf)
+    validate.pdf(90, c(.025, .975), c(0, 100), generate.skewnormal.pdf)
 }
