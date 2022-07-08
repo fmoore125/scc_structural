@@ -20,7 +20,7 @@ for (ii in 1:nrow(dat)) {
 
     values <- generate.pdf(mu, qs, as, 1e6)
     if (is.null(values)) {
-        result <- rbind(results, data.frame(ii, central=NA, score=NA, solution=last.solution))
+        results <- rbind(results, data.frame(ii, central=NA, score=NA, solution=last.solution))
         next
     }
 
@@ -38,6 +38,20 @@ ggplot(results, aes(ifelse(score / central < 1, score / central, NA), fill=solut
     geom_histogram() + coord_cartesian(ylim=c(0, 100)) + scale_y_continuous(expand=c(0, 0)) +
     scale_x_continuous(expand=c(0, 0)) +
     theme_bw() + xlab("RMSE / Central Estimate")
+
+ggplot(subset(results, !(solution %in% c('delta', 'delta ext-coded', 'discrete'))), aes(ifelse(score / central < 1, score / central, NA), fill=solution)) +
+    geom_histogram() + scale_y_continuous(expand=c(0, 0)) +
+    scale_x_continuous(expand=c(0, 0)) + scale_fill_discrete("Distribution:") +
+    theme_bw() + xlab("RMSE / Central Estimate")
+ggsave("figures/distsoln.pdf", width=6.5, height=3.5)
+
+results$short <- sapply(results$solution, function(xx) strsplit(xx, ' ')[[1]][1])
+ggplot(subset(results, !(short %in% c('delta'))), aes(ifelse(score / central > 0 & score / central < 1, score / central, NA), fill=short)) +
+    geom_histogram() + scale_y_continuous(expand=c(0, 0)) +
+    scale_x_continuous(expand=c(0, 0)) + scale_fill_discrete("Distribution:") +
+    theme_bw() + xlab("RMSE / Central Estimate")
+
+table(results$solution)
 
 sum(results$score / results$central > 1, na.rm=T)
 sum(results$score / results$central < .01, na.rm=T)
