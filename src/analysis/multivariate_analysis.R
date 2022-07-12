@@ -10,7 +10,7 @@ library(lfe)
 library(patchwork)
 library(MetBrewer)
 
-dist=fread(file="outputs/distribution.csv")
+dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
 
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
@@ -60,9 +60,8 @@ colnames(distreg) <- gsub(")", ".", colnames(distreg))
 #concatenate carbon cycle and climate model changes into a single "Earth System Change"
 distreg$Earth_system_struc=factor(ifelse(distreg$"Carbon.Cycle_struc"=="Yes","Yes",ifelse(distreg$"Climate.Model_struc"=="Yes","Yes","No")))
 
-
 #simplest linear regression to start
-mod=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+mod_ols=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
@@ -76,7 +75,7 @@ mod_paperfe=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tippi
 
 varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","I(I(discountrate^2))"="Discount Rate^2","declining"="Declining DR","Earth_system_strucYes"="Earth System", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality Aversion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price","failure"="Other Market Failure")
 
-modelsummary(models=list(mod,mod_paperfe),coef_rename = varnames,output="outputs\\sccolsanalysis.docx",stars=TRUE)
+modelsummary(models=list(mod_ols,mod_paperfe),coef_rename = varnames,output="outputs\\sccolsanalysis.docx",stars=TRUE)
 
 
 #set up regression of difference from "baseSCC"
@@ -111,7 +110,7 @@ modelsummary(models=list(mod_basescc),coef_rename = varnames_base,output="output
 
 
 #impossible to show properly in table to make a plot of coefficient values instead
-coefs=data.frame(coefs=c(mod$coefficients,mod_paperfe$coefficients),sd=c(mod$se,mod_paperfe$se),names=c(names(mod$coefficients),names(mod_paperfe$coefficients)),mod=c(rep("No Fixed-Effects",length(mod$coefficients)),rep("Paper Fixed-Effects",length(mod_paperfe$coefficients))))
+coefs=data.frame(coefs=c(mod_ols$coefficients,mod_paperfe$coefficients),sd=c(mod_ols$se,mod_paperfe$se),names=c(names(mod_ols$coefficients),names(mod_paperfe$coefficients)),mod=c(rep("No Fixed-Effects",length(mod_ols$coefficients)),rep("Paper Fixed-Effects",length(mod_paperfe$coefficients))))
 coefs$type="Structural";coefs$type[grep("param",coefs$names)]="Parametric";coefs$type[c(grep("Intercept",coefs$names),grep("sccyear",coefs$names),grep("declining",coefs$names),grep("discountrate",coefs$names),grep("dicemodel",coefs$names),grep("fundmodel",coefs$names),grep("pagemodel",coefs$names),grep("backstop",coefs$names),grep("market",coefs$names),grep("failure",coefs$names))]="Other"
 coefs$names=fct_recode(coefs$names,'SCC Year'="sccyear_from2020", "SCC Year^2"="I(I(sccyear_from2020^2))","Discount Rate"="discountrate","Discount Rate^2"="I(I(discountrate^2))","Declining DR"="declining","Earth System"="Earth_system_strucYes", "Climate Tipping Points"="Tipping.Points_strucYes","Damages Tipping Points"="Tipping.Points2_strucYes","Growth Damages"= "Persistent...Growth.Damages_strucYes","Epstein Zin"="Epstein.Zin_strucYes","Ambiguity"="Ambiguity.Model.Uncertainty_strucYes","Limited-Substitutability"="Limitedly.Substitutable.Goods_strucYes" ,"Inequality Aversion"="Inequality.Aversion_strucYes","Learning"="Learning_strucYes","TFP Growth"="TFP.Growth_paramYes","Pop Growth"="Population.Growth_paramYes","Emissions Growth"="Emissions.Growth_paramYes", "Trans. Climate Resp."="Transient.Climate.Response_paramYes" ,"Carbon Cycle"="Carbon.Cycle2_paramYes" ,"Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_paramYes", "Tipping Point Size"="Tipping.Point.Magnitude_paramYes","Damage Function"="Damage.Function_paramYes","Adaptation Rates"="Adaptation.Rates_paramYes" ,"Income Elasticity"="Income.Elasticity_paramYes","Const. Discount Rate"="Constant.Discount.Rate_paramYes" ,"EMUC"="EMUC2_paramYes", "PRTP"="PRTP2_paramYes","Risk Aversion"="Risk.Aversion..EZ.Utility._paramYes" , "DICE"="dicemodel","FUND"="fundmodel","PAGE"="pagemodel" ,"Backstop Price"="backstop","Market Only Damages"="marketonly","Other Market Failure"="failure")
 
@@ -143,7 +142,7 @@ ggplot(subset(coefs, !is.na(names) & !names%in%c("(Intercept)","SCC Year","SCC Y
     geom_point(position=position_dodge(width = 0.5)) +
     geom_errorbar(aes(xmin=coefs-1.67*sd,xmax=coefs+1.67*sd), position=position_dodge(width = 0.5)) +
     theme_bw() + labs(y=NULL,x="Coefficient Value\n(Dependent Variable = Log SCC)",col="Model") +
-    geom_hline(yintercept = 0) + scale_color_manual(values=cols)
+    geom_hline(yintercept = 0) + scale_color_manual(values=cols)+ theme(strip.background =element_rect(fill="white"))
 
 
 plots=list()
@@ -159,6 +158,8 @@ for(i in coeftypes){
 }
 x11()
 plots[[1]]/plots[[2]]/plots[[3]]
+
+save(coefs,file="outputs/regression_coefficients.RDat")
 
 
 #####------------Random Forest Analysis ----------
