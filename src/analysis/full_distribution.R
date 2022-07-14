@@ -156,7 +156,7 @@ dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 
 #compare quantiles
-breaks=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
+breaks=c(0.01,0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975,0.99)
 quantiles=data.frame(quantilesplits=breaks,unweighted=quantile(dist$draw,breaks),coauthorweights=quantile(dist_weighted$draw,breaks,na.rm=T),citationweights=quantile(dist_weighted_citations$draw,breaks,na.rm=T))
 write.csv(quantiles,file="outputs/quantiles_differentweightings.csv")
 
