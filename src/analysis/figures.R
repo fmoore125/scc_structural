@@ -26,7 +26,7 @@ femod_row=felm(draw~1|row,data=dist)
 dist_rowfe=femod_row$residuals
 
 #plot the quantiles of the distributions
-relprobs=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
+relprobs=c(0.01,0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975,0.99)
 
 quants=data.frame(Demeaned=quantile(dist_demeaned,relprobs),PaperFE=quantile(dist_paperfe,relprobs),RowFE=quantile(dist_rowfe,relprobs))
 quants$probs=relprobs
