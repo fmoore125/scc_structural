@@ -7,7 +7,7 @@ library(vctrs)
 
 source("src/analysis/find_distribution.R")
 
-dat=read.csv("C:/Users/fmoore/Dropbox/SCC_expert_survey/Author_survey/Data/data_SCC-expert-survey_final_Fran.csv")
+dat=read.csv("data/expert_survey/data_SCC-expert-survey_final_anonymous.csv")
 
 #first figure - distributions of literature and all things considered values
 
@@ -42,6 +42,8 @@ twodists=fig1dat%>%
   group_by(type)%>%
   dplyr::summarise(dist=vec_c(samp))%>%
   unnest(cols = c(dist))
+
+fwrite(twodists,file="outputs/expert_survey_data_products/question1_distributions.csv")
 
 # litdist=numeric(length=nsamp);truedist=numeric(length=nsamp)
 # 

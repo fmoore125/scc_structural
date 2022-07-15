@@ -33,7 +33,7 @@ scens <- scens%>%
   dplyr::summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T)*100)
 scens$year <- as.numeric(scens$year)
 
-scensyears <- scens%>%group_by(year)%>%summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T))
+scensyears <- scens%>%group_by(year)%>%dplyr::summarise(cons_growth_percap=mean(cons_growth_percap,na.rm=T))
 
 ## Calculate average discount rates
 
