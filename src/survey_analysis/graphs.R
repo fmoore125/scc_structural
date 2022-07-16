@@ -45,20 +45,6 @@ twodists=fig1dat%>%
 
 fwrite(twodists,file="outputs/expert_survey_data_products/question1_distributions.csv")
 
-# litdist=numeric(length=nsamp);truedist=numeric(length=nsamp)
-# 
-# #randomly draw experts uniformly
-# 
-# for(i in 1:nsamp){
-#   j=which(fig1dat$id==lit_samp[i]&fig1dat$type=="Lit")
-#   litdist[i]=ifelse(is.na(fig1dat$lower[j])|is.na(fig1dat$upper[j]),fig1dat$central[j],rtri(1,min=fig1dat$lower[j],max=fig1dat$upper[j],mode=fig1dat$central[j]))
-#   k=which(fig1dat$id==true_samp[i]&fig1dat$type=="Tru")
-#   truedist[i]=ifelse(is.na(fig1dat$lower[k])|is.na(fig1dat$upper[k]),fig1dat$central[k],rtri(1,min=fig1dat$lower[k],max=fig1dat$upper[k],mode=fig1dat$central[k]))
-#   if(i%%1000==0) print(i)
-# }
-# 
-# distdat=data.frame(dist=c(litdist,truedist),type=c(rep(1,nsamp),rep(2,nsamp)))
-# 
 #read in meta-analysis distribution, subset to 2010-2030
 metadist=fread("outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -80,4 +66,29 @@ a=a+geom_boxplot(data=twodists%>%filter(type=="Tru"&dist>quantile(dist,0.01)&dis
 a=a+geom_boxplot(data=metadist%>%filter(draw>quantile(draw,0.01)&draw<quantile(draw,0.99)),aes(y=draw,group=type,x=3),inherit.aes = FALSE,position=position_nudge(x=0.75),fill="slateblue3",width=0.25)
 a
 
+#process data for integration of question into Figure 2
 
+codingvals=data.frame(bin=1:13,meanval=c(-200,-150,-75,-40,-20,-5,0,5,20,40,75,150,200))
+
+convertbins=function(x,lookup=codingvals){
+  return(ifelse(is.na(x),NA,lookup$meanval[x]))
+}
+
+fig2dat_vals=dat%>%
+  select("Interview.number..ongoing.","Q2_MeanSCC_earth_system":"Q2_MeanSCC_distributional_weighting")%>%
+  rename("ID"="Interview.number..ongoing.")%>%
+  mutate(across(.cols="Q2_MeanSCC_earth_system":"Q2_MeanSCC_distributional_weighting",.fns=~convertbins(.)))
+
+#simplify names of structural changes
+strucs=c("Earth System","Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Limited Substitutability","Epstein-Zin","Ambiguity/Model Uncertainty","Learning","Inequality Aversion")
+colnames(fig2dat_vals)[2:10]=strucs
+
+codingqual=data.frame(bin=1:5,meanval=c("Strongly Disagree","Disagree","Neither Agree nor Disagree","Agree","Strongly Agree"))
+
+fig2dat_qual=dat%>%
+  select("Interview.number..ongoing.","Q2_Include_earth_system":"Q2_Include_distributional_weighting")%>%
+  rename("ID"="Interview.number..ongoing.")%>%
+  mutate(across(.cols="Q2_Include_earth_system":"Q2_Include_distributional_weighting",.fns=~convertbins(.,lookup=codingqual)))
+colnames(fig2dat_qual)[2:10]=strucs
+
+save(fig2dat_vals,fig2dat_qual,file="outputs/expert_survey_data_products/fig2surveydata.Rdat")

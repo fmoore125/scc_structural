@@ -153,7 +153,7 @@ struc=dat%>%
 
 diststruc=cbind(dist,struc[dist$row,])
 
-colnames(diststruc)[c(4:5,9)]=c("Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability")
+diststruc=diststruc%>%rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
