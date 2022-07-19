@@ -26,7 +26,7 @@ femod_row=felm(draw~1|row,data=dist)
 dist_rowfe=femod_row$residuals
 
 #plot the quantiles of the distributions
-relprobs=c(0.01,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.99)
+relprobs=c(0.01,0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975,0.99)
 
 quants=data.frame(Demeaned=quantile(dist_demeaned,relprobs),PaperFE=quantile(dist_paperfe,relprobs),RowFE=quantile(dist_rowfe,relprobs))
 quants$probs=relprobs
@@ -45,16 +45,21 @@ a=a+geom_segment(data=quants%>%filter(probs==0.5),x=c(0.75,1.75,2.75),xend=c(1.2
 a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(text=element_text(size=18))
 
 #full distribution
+
+#drop outlier Nordhaus row
+todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
+if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
+
 dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
 dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
 
-distplot=dist[-which(dist$draw<quantile(dist$draw,0.005)|dist$draw>quantile(dist$draw,0.995)|dist$year<=2010|is.na(dist$year)|dist$year>2100),]
+#distplot=dist[-which(dist$draw<quantile(dist$draw,0.005)|dist$draw>quantile(dist$draw,0.995)|dist$year<=2010|is.na(dist$year)|dist$year>2100),]
 distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.008)
 
-a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(width=0.006)+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.)
+a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(width=0.006)+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")
 a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500,2000))
+a=a+geom_hline(yintercept = 0)+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500,2000),limits=c(-100,2500))
 
 #add IWG values
 iwg=read.csv("C:/Users/fmoore/Documents/GitHub/scc_structural/outputs/iwgruns.csv",row.names=1)
@@ -70,9 +75,21 @@ iwgdist$yeargroup=fct_recode(iwgdist$yeargroup,"2010-2030"="early","2030-2070"="
 iwgdist=iwgdist[-which(iwgdist$value<quantile(iwgdist$value,0.01,na.rm=T)|iwgdist$value>quantile(iwgdist$value,0.99,na.rm=T)),]
 
 a=a+geom_boxplot(aes(x=value,alpha=0,y=-0.01),width=0.0035,data=iwgdist,fill="white",inherit.aes=FALSE)+scale_alpha_continuous(guide="none")
-ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(690,690))
+ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(750,750))
 a=a+geom_text(data=ann_text,aes(label=text,y=-0.01,x=x))
 
+#add in expert survey results as well to upper panel
+#(survey data processed to produce aggregate distributions in "src/survey_analysis/graphs.R")
+surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
+surveydat$yeargroup=as.factor("2010-2030")
+
+cols=met.brewer("Degas",2,type="discrete")
+a=a+geom_boxplot(data=surveydat%>%filter(type=="Lit"),aes(x=dist,y=-0.015),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[1])
+a=a+geom_boxplot(data=surveydat%>%filter(type=="Tru"),aes(x=dist,y=-0.02),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[2])
+
+ann_text2=data.frame(text=c("Expert Survey: Literature Estimate","Expert Survey: Comprehensive Estimate"),yeargroup=factor(rep("2010-2030",2)),x=c(1500,1500),y=c(-0.013,-0.018),type=c("Lit","Tru"))
+a=a+geom_text(data=ann_text2,aes(x=x,y=y,label=text,col=type),inherit.aes=FALSE)
+a=a+scale_color_manual(values=cols,guide="none")
 x11()
 a
 
@@ -136,7 +153,7 @@ struc=dat%>%
 
 diststruc=cbind(dist,struc[dist$row,])
 
-colnames(diststruc)[c(4:5,9)]=c("Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability")
+diststruc=diststruc%>%rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
