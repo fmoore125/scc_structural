@@ -3,7 +3,7 @@
 library(readxl)
 library(cluster)
 
-df <- read_excel("../data/data_SCC-expert-survey_final_anonymous.xlsx")
+df <- read_excel("data/data_SCC-expert-survey_final_anonymous.xlsx")
 df$anon <- df$Anonymous
 df$anon[is.na(df$anon)] <- 1 - df$Non_anonymous[is.na(df$anon)]
 
