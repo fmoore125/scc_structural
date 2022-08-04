@@ -54,10 +54,21 @@ dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
 dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
 
-#distplot=dist[-which(dist$draw<quantile(dist$draw,0.005)|dist$draw>quantile(dist$draw,0.995)|dist$year<=2010|is.na(dist$year)|dist$year>2100),]
-distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.008)
+distplot=dist
+distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.006)
+distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))%>%
+  filter(draw>quantile(draw,0.005)&draw<quantile(draw,0.995))
 
-a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(width=0.006)+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")
+quants=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)
+pfuns=map(quants,~partial(quantile,probs=.x))
+
+summarydist=distplot%>%
+  group_by(yeargroup)%>%
+  summarize_at(vars(draw),funs(!!!pfuns))
+colnames(summarydist)[2:8]=c("lowest","xmin","lower","middle","upper","xmax","highest")
+summarydist$y=c(-0.004,-0.004,-0.006)
+  
+a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(y=y,xmin=xmin,xlower=lower,xmiddle=middle,xupper=upper,xmax=xmax,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity")+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")
 a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
 a=a+geom_hline(yintercept = 0)+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500,2000),limits=c(-100,2500))
 
