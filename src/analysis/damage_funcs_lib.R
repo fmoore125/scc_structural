@@ -38,9 +38,9 @@ dice.2010.xy <- list(x=c(0.3901141670991178, 1.0132330046704723, 2.2210690192008
 page.09.xy <- list(x=c(0.39244940321743643, 1.0132330046704723, 2.232615464452517, 3.190062272963155, 4.3816813700051895, 5.727036844836533, 7.775428126621692),
                    y=c(0.4272839439944209, 0.6594335067861166, 1.6994796416501259, 2.9660425942814226, 5.919210342792768, 9.638431414623678, 15.789791320208142) / 100)
 
-dice.2007 <- function(T) 0.0023888 * T^2
+dice.2007 <- function(T) 1 - 1 / (1 + 0.0023888 * T^2)
 fund.3.5 <- function(T) -0.007457*T + 0.002685*T^2 - 0.000100*T^3 + 0.000001*T^4
-dice.2013r <- function(T) 0.00267 * T^2
+dice.2013r <- function(T) 1 - 1 / (1 + 0.00267 * T^2)
 fund.3.8 <- approxfun(fund.3.8.xy$x, fund.3.8.xy$y)
 dice.2010 <- approxfun(dice.2010.xy$x, dice.2010.xy$y)
 page.09 <- approxfun(page.09.xy$x, page.09.xy$y)
@@ -48,7 +48,7 @@ page.09 <- approxfun(page.09.xy$x, page.09.xy$y)
 hardcodeddfs <- list("DICE-2007"=dice.2007, "DICE 2007"=dice.2007, "DICE2007"=dice.2007,
                      "DICE2010"=dice.2010, "DICE 2010"=dice.2010,
                      "DICE-2013R"=dice.2013r, "DICE 2013R"=dice.2013r, "DICE2013"=dice.2013r, "DICE 2013"=dice.2013r,
-                     "DICE2007, cubic damages (T^3)"=function(T) 0.0023888 * T^3,
+                     "DICE2007, cubic damages (T^3)"=function(T) 1 - 1 / (1 + 0.0023888 * T^3),
                      "DICE-2007 + 0.00644 * (T / 4)^3"=function(T) dice.2007(T) + 0.00644 * (T / 4)^3,
                      "PAGE2009"=page.09,
                      "FUND 3.10"=fund.3.8, "FUND 3.6"=fund.3.5, "FUND 3.9"=fund.3.8, "FUND"=fund.3.8,
@@ -127,7 +127,7 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
 
     if (!is.null(founddf)) {
         added.by <- paste(unique(dat$`Added By`[!is.na(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`) & dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc]), collapse=', ')
-        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=sapply(plotTT, founddf), dmgfunc, scc.source, added.by))
+        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=pmin(1, sapply(plotTT, founddf)), dmgfunc, scc.source, added.by))
         dmg <- calc.scc(founddf, emitdf, year0, gdp0, discountrate)
         dat$scc.synth[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- dmg
         dat$scc.source[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- scc.source
