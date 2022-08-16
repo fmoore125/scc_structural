@@ -4,10 +4,29 @@ library(readxl)
 
 old <- dat$`Emissions Scenario`
 dat$`Emissions Scenario` <- gsub("^RCP\\s*([0-9.]+)$", "RCP \\1", old)
-
+dat$`Emissions Scenario` <- fct_recode(dat$`Emissions Scenario`, DICE2007="DICE-2007", DICE2016R = "DICE-2016R")
+dat$`Emissions Scenario` <- fct_collapse(dat$`Emissions Scenario`, DICE2013=c("DICE2013", "DICE 2013"))
 ## Functions to translate scenarios to temperatures
 
 temptrajdf <- read_excel("data/scenarios/consumption_temperature_trajectories.xlsx",sheet="Temperature Trajectories", skip=1)
+
+## Add multimodel SRES scenarios
+mmscens <- rep(NA, nrow(temptrajdf))
+for (ii in grep("IPCC SRES Scenario", temptrajdf$Model))
+    mmscens[ii] <- strsplit(temptrajdf$Model[ii], " ")[[1]][4]
+for (ii in grep("-Baseline", temptrajdf$Model))
+    mmscens[ii] <- strsplit(temptrajdf$Model[ii], " |-Baseline")[[1]][2]
+
+newrows <- data.frame()
+for (mmscen in unique(mmscens)) {
+    if (is.na(mmscen))
+        next
+    rows <- temptrajdf[!is.na(mmscens) & mmscens == mmscen, -1]
+    newrow <- cbind(Model=mmscen, data.frame(t(colMeans(rows, na.rm=T))))
+    names(newrow) <- names(temptrajdf)
+    newrows <- rbind(newrows, newrow)
+}
+temptrajdf <- rbind(temptrajdf, newrows)
 temptrajdf$Model <- clean.modelnames(temptrajdf$Model)
 
 ## Interpret emissions
@@ -111,19 +130,47 @@ get.temps <- function(emitscen, lastyear=2300) {
 ## get.temps("Weirdo")
 ## get.temps("DICE2013R")
 
-## Guess 2100 for every emissions scenario
-dat$temp.2100 <- NA
-for (emitscen in unique(dat$`Emissions Scenario`)) {
-    temps <- get.temps(emitscen, 2100)
+get.temp.year <- function(emitscen, year) {
+    temps <- get.temps(emitscen, year)
     if (!is.null(temps)) {
-        dt.2100 <- temps$dtemp.1900[temps$year == 2100]
-        if (length(dt.2100) == 0)
-            dt.2100 <- spline(temps$year, temps$dtemp.1900, method='natural', xout=2100)$y
-        dat$temp.2100[dat$`Emissions Scenario` == emitscen] <- dt.2100
+        dt.year <- temps$dtemp.1900[temps$year == year]
+        if (length(dt.year) == 0)
+            dt.year <- spline(temps$year, temps$dtemp.1900, method='natural', xout=year)$y
+        return(dt.year)
     }
+    NA
 }
 
+## Guess 2100 for every emissions scenario
+dat$temp.2100 <- NA
+dat$temp.2100.source <- NA
+for (emitscen in unique(dat$`Emissions Scenario`)) {
+    if (is.na(emitscen))
+        next
+    else if (emitscen == "Optimal") {
+        for (model in unique(dat$`Base IAM (if applicable)`[dat$`Emissions Scenario` == emitscen]))
+            if (!is.na(model) && substring(model, 1, 4) == "DICE") {
+                rows <- dat$`Emissions Scenario` == emitscen & dat$`Base IAM (if applicable)` == model
+                dat$temp.2100[rows] <- get.temp.year(model, 2100)
+                dat$temp.2100.source[rows] <- model
+            }
+    } else if (emitscen %in% c('Base', 'Baseline')) {
+        for (model in unique(dat$`Base IAM (if applicable)`[dat$`Emissions Scenario` == emitscen])) {
+            rows <- dat$`Emissions Scenario` == emitscen & dat$`Base IAM (if applicable)` == model
+            dat$temp.2100[rows] <- get.temp.year(model, 2100)
+            dat$temp.2100.source[rows] <- model
+        }
+    } else {
+        rows <- dat$`Emissions Scenario` == emitscen
+        dat$temp.2100[rows] <- get.temp.year(emitscen, 2100)
+        dat$temp.2100.source[rows] <- emitscen
+    }
+}
+dat$temp.2100.source[is.na(dat$temp.2100)] <- NA
+
 if (F) {
+    table(dat$`Emissions Scenario`[is.na(dat$temp.2100)])
+
     ## Check which scenarios we can't model yet
     for (emitscen in unique(dat$`Emissions Scenario`)) {
         if (is.null(get.temps(emitscen)))
