@@ -60,17 +60,20 @@ distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))%
   filter(draw>quantile(draw,0.005)&draw<quantile(draw,0.995))
 
 quants=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)
-pfuns=map(quants,~partial(quantile,probs=.x))
+pfuns=map(quants,~partial(quantile,probs=.x,na.rm=T))
 
 summarydist=distplot%>%
+  filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
   group_by(yeargroup)%>%
   summarize_at(vars(draw),funs(!!!pfuns))
-colnames(summarydist)[2:8]=c("lowest","xmin","lower","middle","upper","xmax","highest")
-summarydist$y=c(-0.004,-0.004,-0.006)
+colnames(summarydist)[2:8]=c("lowest","min","lower","middle","upper","max","highest")
+summarydist$y=c(-0.004,-0.004)
   
-a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(y=y,xmin=xmin,xlower=lower,xmiddle=middle,xupper=upper,xmax=xmax,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity")+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")
-a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500,2000),limits=c(-100,2500))
+a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030","2030-2070")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")+coord_flip()
+a=a+theme_bw()+labs(y="SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
+a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000),limits=c(-100,1500))
+#add dashed lines extending boxplots to 1% and 99%
+a=a+geom_segment(data=summarydist,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
 #add IWG values
 iwg=read.csv("C:/Users/fmoore/Documents/GitHub/scc_structural/outputs/iwgruns.csv",row.names=1)
@@ -83,23 +86,41 @@ iwgdist=pivot_longer(iwgdist,cols=1:2,names_to=c("yeargroup"))
 extra=data.frame(yeargroup=c('2070-2100'),value=NA)
 iwgdist=rbind(iwgdist,extra)
 iwgdist$yeargroup=fct_recode(iwgdist$yeargroup,"2010-2030"="early","2030-2070"="late")
-iwgdist=iwgdist[-which(iwgdist$value<quantile(iwgdist$value,0.01,na.rm=T)|iwgdist$value>quantile(iwgdist$value,0.99,na.rm=T)),]
 
-a=a+geom_boxplot(aes(x=value,alpha=0,y=-0.01),width=0.0035,data=iwgdist,fill="white",inherit.aes=FALSE)+scale_alpha_continuous(guide="none")
-ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(750,750))
-a=a+geom_text(data=ann_text,aes(label=text,y=-0.01,x=x))
+iwgdist_summary=iwgdist%>%
+  filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
+  group_by(yeargroup)%>%
+  summarize_at(vars(value),funs(!!!pfuns))
+colnames(iwgdist_summary)[2:8]=c("lowest","min","lower","middle","upper","max","highest")
+iwgdist_summary$y=c(-0.01,-0.01)
+
+a=a+geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),width=0.0035,data=iwgdist_summary,fill="white",inherit.aes=FALSE,stat="identity")
+ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(550,800))
+a=a+geom_text(data=ann_text,aes(label=text,x=-0.01,y=x))
+a=a+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
 #add in expert survey results as well to upper panel
 #(survey data processed to produce aggregate distributions in "src/survey_analysis/graphs.R")
 surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
 surveydat$yeargroup=as.factor("2010-2030")
 
-cols=met.brewer("Degas",2,type="discrete")
-a=a+geom_boxplot(data=surveydat%>%filter(type=="Lit"),aes(x=dist,y=-0.015),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[1])
-a=a+geom_boxplot(data=surveydat%>%filter(type=="Tru"),aes(x=dist,y=-0.02),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[2])
+cols=c("seagreen4","palegreen3")
+surveydat_summary=surveydat%>%
+  group_by(type,yeargroup)%>%
+  summarize_at(vars(dist),funs(!!!pfuns))
+colnames(surveydat_summary)[3:9]=c("lowest","min","lower","middle","upper","max","highest")
+surveydat_summary$y=c(-0.015,-0.02)
+#manually replace value to avoid figure cutoff
+surveydat_summary$highest[which(surveydat_summary$highest>1500)]=1499
 
-ann_text2=data.frame(text=c("Expert Survey: Literature Estimate","Expert Survey: Comprehensive Estimate"),yeargroup=factor(rep("2010-2030",2)),x=c(1500,1500),y=c(-0.013,-0.018),type=c("Lit","Tru"))
-a=a+geom_text(data=ann_text2,aes(x=x,y=y,label=text,col=type),inherit.aes=FALSE)
+a=a+geom_boxplot(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[1],stat="identity")
+a=a+geom_segment(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,xend=y,y=highest,yend=max),lty=2,col=cols[1])
+
+a=a+geom_boxplot(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[2],stat="identity")
+a=a+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=highest,yend=max),lty=2,col=cols[2])
+
+ann_text2=data.frame(text=c("Expert Survey: Literature 2020 Estimate","Expert Survey: Comprehensive 2020 Estimate"),yeargroup=factor(rep("2010-2030",2)),y=c(1000,1000),x=c(-0.013,-0.018),type=c("Lit","Tru"))
+a=a+geom_text(data=ann_text2,aes(y=y,x=x,label=text,col=type),inherit.aes=FALSE)
 a=a+scale_color_manual(values=cols,guide="none")
 x11()
 a
