@@ -251,10 +251,12 @@ fig2dat_qual=fig2dat_qual%>%
   filter(!is.na(ans))
 fig2dat_qual$ans=as.factor(fig2dat_qual$ans)
 fig2dat_qual$ans=fct_relevel(fig2dat_qual$ans,"Strongly Disagree","Disagree","Neither Agree nor Disagree","Agree","Strongly Agree")
+fig2dat_qual$ans=fct_recode(fig2dat_qual$ans,Neutral="Neither Agree nor Disagree")
 
 b=ggplot(fig2dat_qual,aes(x=ans,y=StructuralChange,group=StructuralChange))
 b=b+geom_density_ridges2(fill="#f7e057",col="black",stat = "binline", binwidth = 1,scale=0.95)
-b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 45))+labs(y="",x="")
+b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 90,vjust = 1, hjust=0.5))+labs(y="",x="")
+b=b+scale_x_discrete(labels = function(x) str_wrap(x, width = 8))
 
 a+b+plot_layout(widths=c(3,1))
 
