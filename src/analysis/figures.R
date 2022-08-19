@@ -68,15 +68,15 @@ summarydist=distplot%>%
   summarize_at(vars(draw),funs(!!!pfuns))
 colnames(summarydist)[2:8]=c("lowest","min","lower","middle","upper","max","highest")
 summarydist$y=c(-0.004,-0.004)
-  
+
 a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030","2030-2070")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")+coord_flip()
 a=a+theme_bw()+labs(y="SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000),limits=c(-100,1500))
+a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1500, by=100)), limits=c(-100,1500), expand=c(0, 0))
 #add dashed lines extending boxplots to 1% and 99%
 a=a+geom_segment(data=summarydist,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
 #add IWG values
-iwg=read.csv("C:/Users/fmoore/Documents/GitHub/scc_structural/outputs/iwgruns.csv",row.names=1)
+iwg=read.csv("outputs/iwgruns.csv",row.names=1)
 iwg=iwg[,-(1+grep("PAGE.59",colnames(iwg)):dim(iwg)[2])]
 #just keep central years from ranges - 2020 and 2050
 iwg=iwg[,which(iwg[1,]==2020|iwg[1,]==2050)]
@@ -124,6 +124,7 @@ a=a+geom_text(data=ann_text2,aes(y=y,x=x,label=text,col=type),inherit.aes=FALSE)
 a=a+scale_color_manual(values=cols,guide="none")
 x11()
 a
+ggsave("figures/figure1.pdf", width=13, height=6)
 
 #different figure looking at publication date
 dist$pubyear=dat$Year[dist$row]
