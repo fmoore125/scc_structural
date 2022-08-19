@@ -133,3 +133,8 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
         dat$scc.source[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- scc.source
     }
 }
+
+## Add interaction system for ssc.synth
+dat$log.scc.synth <- log(dat$scc.synth)
+dat$missing.scc.synth <- !is.finite(dat$log.scc.synth)
+dat$log.scc.synth[dat$missing.scc.synth] <- 0
