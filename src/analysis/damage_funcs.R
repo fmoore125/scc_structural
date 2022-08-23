@@ -2,6 +2,12 @@
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+ggplot(subset(dat, !is.na(temp.2100.source)), aes(temp.2100, `Central Value ($ per ton CO2)`)) +
+    geom_point(aes(colour=temp.2100.source)) +
+    geom_smooth(method='lm') +
+    scale_y_log10() + scale_colour_discrete("Emissions scenario") +
+    theme_bw() + xlab("Temperature in 2100")
+
 source("src/analysis/damage_funcs_lib.R")
 
 library(ggplot2)
