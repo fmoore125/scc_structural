@@ -50,9 +50,8 @@ names(micedf) <- paste0('X', 1:ncol(micedf))
 imputed <- mice(micedf)
 withall <- complete(imputed)
 
-dat$scc.synth <- withall$X1
-dat$log.scc.synth <- log(dat$scc.synth)
-dat$log.scc.synth[!is.finite(dat$log.scc.synth)] <- NA
+dat$scc.synth.imputed <- withall$X1
+dat$log.scc.synth.imputed <- log(dat$scc.synth.imputed)
 
 dat$`Earth System` <- "0"
 dat$`Earth System`[paste(dat$`Carbon Cycle`, dat$`Climate Model`) != "0 0"] <- "1.0"
@@ -87,38 +86,41 @@ plot.anova <- function(mod, anvdf=NULL, minlabel=.02) {
         geom_text(data=subset(anvdf2, `Sum Sq` > minlabel), aes(y = ypos, label = pred), color = "white", size=3)
 }
 
-mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat, weights=weights)
+mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth.imputed, data=dat, weights=weights)
 plot.anova(mod)
 
-mod0 <- lm(log.scc.2020usd ~ `Year` + `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "0",], weights=weights[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "0"])
+mod <- lm(log.scc.2020usd ~ `SCC Year` + `Year` + `Backstop Price?` + `Other Market Failure?` + discountrate + `Market Only Damages` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth + missing.scc.synth, data=dat, weights=weights)
+plot.anova(mod)  # sum is less than imputed
+
+mod0 <- lm(log.scc.2020usd ~ `Year` + `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Carbon Cycle` + `Climate Model` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth.imputed, data=dat[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "0",], weights=weights[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "0"])
 anvdf0 <- get.anvdf(mod0)
 
-mod1 <- lm(log.scc.2020usd ~ `Year` + discountrate + `Carbon Cycle` + `Climate Model` + `Persistent / Growth Damages` + log.scc.synth, data=dat[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "1.0",], weights=weights[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "1.0"])
+mod1 <- lm(log.scc.2020usd ~ `Year` + discountrate + `Carbon Cycle` + `Climate Model` + `Persistent / Growth Damages` + log.scc.synth.imputed, data=dat[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "1",], weights=weights[dat$`SCC Year` %in% 2010:2030 & dat$`Market Only Damages` == "1"])
 anvdf1 <- get.anvdf(mod1)
 
 anvdf <- anvdf0 %>% left_join(anvdf1, by='pred', suffix=c('.0', '.1'))
 anvdf$`Sum Sq` <- anvdf$`Sum Sq.0`
 both <- !is.na(anvdf$`Sum Sq.1`)
 anvdf$`Sum Sq`[both] <- anvdf$`Sum Sq.0`[both] * sum(weights[dat$`Market Only Damages` == "0"]) / sum(weights) +
-    anvdf$`Sum Sq.1`[both] * sum(weights[dat$`Market Only Damages` == "1.0"]) / sum(weights)
+    anvdf$`Sum Sq.1`[both] * sum(weights[dat$`Market Only Damages` == "1"]) / sum(weights)
 plot.anova(NULL, anvdf)
 
-anvdf2$`Sum Sq`[anvdf2$pred == 'discountrate'] / sum(anvdf2$`Sum Sq`)
-anvdf2$`Sum Sq`[anvdf2$pred == 'log.scc.synth'] / sum(anvdf2$`Sum Sq`)
+anvdf$`Sum Sq`[anvdf$pred == 'discountrate'] / sum(anvdf$`Sum Sq`)
+anvdf$`Sum Sq`[anvdf$pred == 'log.scc.synth.imputed'] / sum(anvdf$`Sum Sq`)
 
 unique(dat[dat$`SCC Year` %in% 2010:2030, struccols])
 
-mod <- lm(log.scc.2020usd ~ `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth, data=dat[dat$`SCC Year` %in% 2010:2030,], weights=weights[dat$`SCC Year` %in% 2010:2030])
+mod <- lm(log.scc.2020usd ~ `Other Market Failure?` + discountrate + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches` + log.scc.synth.imputed, data=dat[dat$`SCC Year` %in% 2010:2030,], weights=weights[dat$`SCC Year` %in% 2010:2030])
 plot.anova(mod, minlabel=.01)
 
 anvdf <- get.anvdf(mod)
 anvdf <- anvdf[anvdf$pred != "Residuals",]
 
 anvdf$`Sum Sq`[anvdf$pred == 'discountrate'] / sum(anvdf$`Sum Sq`)
-anvdf$`Sum Sq`[anvdf$pred == 'log.scc.synth'] / sum(anvdf$`Sum Sq`)
+anvdf$`Sum Sq`[anvdf$pred == 'log.scc.synth.imputed'] / sum(anvdf$`Sum Sq`)
 
 ## Try dropping every other component
-preds <- c("`Other Market Failure?`", "discountrate", "`Ambiguity/Model Uncertainty`", "`Earth System`", "`Climate Tipping Point`", "`Damages Tipping Point`", "`Epstein-Zin`", "`Inequality Aversion`", "`Learning`", "`Limitedly-Substitutable Goods`", "`Persistent / Growth Damages`", "`Alternative ethical approaches`", "log.scc.synth")
+preds <- c("`Other Market Failure?`", "discountrate", "`Ambiguity/Model Uncertainty`", "`Earth System`", "`Climate Tipping Point`", "`Damages Tipping Point`", "`Epstein-Zin`", "`Inequality Aversion`", "`Learning`", "`Limitedly-Substitutable Goods`", "`Persistent / Growth Damages`", "`Alternative ethical approaches`", "log.scc.synth.imputed")
 
 results <- data.frame()
 for (ii in 1:length(preds)) {
@@ -144,3 +146,25 @@ anvdf <- anvdf[anvdf$pred != "Residuals",]
 
 anvdf$base <- anvdf$`Sum Sq` / sum(anvdf$`Sum Sq`)
 ressum2 <- ressum %>% left_join(anvdf[, c('pred', 'base')])
+ressum2$mu <- ressum2$mu / sum(ressum2$mu)
+
+labels <- list("log.scc.synth.imputed"="Damage function", "discountrate"="Discount rate",
+               "`Other Market Failure?`"="Other Market Failures")
+ressum2$label <- sapply(ressum2$pred, function(pred) ifelse(pred %in% names(labels), labels[[pred]], gsub("`", "", pred)))
+
+ressum3 <- ressum2 %>%
+    arrange(desc(label)) %>%
+    mutate(ypos = cumsum(mu)- 0.5*mu )
+
+ggplot(ressum3, aes(x="", y=mu, fill=label)) +
+    geom_bar(stat="identity", width=1, color='grey') +
+    coord_polar("y", start=pi/2) +
+    theme_void() + theme(legend.position="none") +
+    geom_text(data=subset(ressum3, mu > .01), aes(y = ypos, label = label), color = "white", size=3)
+ggsave("outputs/figures/anova-pie.pdf", width=5, height=5)
+
+library(xtable)
+ressum2$perc <- paste0(format(100 * ressum2$base, digits=1), "%")
+ressum2$range <- paste0('[', round(1000 * ressum2$min) / 10, " - ", round(1000 * ressum2$max) / 10, '%]')
+print(xtable(ressum2[, c('label', 'perc', 'range')]), include.rownames=F)
+
