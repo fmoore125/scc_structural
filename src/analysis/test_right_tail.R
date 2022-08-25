@@ -14,6 +14,7 @@ dat = dat |>
     clean_names() |> 
     rename(damage_tipping = tipping_points2,
            climate_tipping = tipping_points) |> 
+    # when doing the max we need numeric values here and not NA
     mutate(carbon_cycle = as.numeric(carbon_cycle),
            carbon_cycle = ifelse(is.na(carbon_cycle), 0, 1),
            climate_model = as.numeric(climate_model),
@@ -63,58 +64,6 @@ mef_df_alt = map_df(unique(mef_df_alt),
                             n = length(mef_df_alt[mef_df_alt > x])
                         )
                     })
-
-#############################
-#### MEAN EXCESS PLOT
-#############################
-
-# make binscattered MEF plot
-mef_bins = mef_df |> 
-    filter(x > quantile(resampled_df$central_value_per_ton_co2, .5, na.rm = T)) |> 
-    filter(x < quantile(resampled_df$central_value_per_ton_co2, .99, na.rm = T)) |> 
-    mutate(bins = ntile(x, 100)) |> 
-    group_by(bins) |> 
-    summarise(me = mean(me, na.rm = T),
-              x = mean(x, na.rm = T))
-
-mef_alt_bins = mef_df_alt |> 
-    filter(x > quantile(resampled_df$central_value_per_ton_co2, .5, na.rm = T)) |> 
-    filter(x < quantile(resampled_df$central_value_per_ton_co2, .99, na.rm = T)) |> 
-    mutate(bins = ntile(x, 100)) |> 
-    group_by(bins) |> 
-    summarise(me = mean(me, na.rm = T),
-              x = mean(x, na.rm = T))
-
-ggplot() +
-    geom_point(data = mef_bins, aes(x = x, y = me), size = 3, shape = 16) +
-    geom_point(data = mef_alt_bins, aes(x = x, y = me), size = 3, shape = 8) +
-    annotate(
-        geom = "text", x = 900, y = 3700, label = "Full Sample", hjust = 0,
-        size = 7
-    ) +
-    annotate(
-        geom = "text", x = 900, y = 1000, label = "Exclude Nordhaus (2019)", hjust = 0,
-        size = 7
-    ) +
-    theme_minimal() +
-    theme(
-        legend.position = "none",
-        title = element_text(size = 24),
-        axis.text.x = element_text(size = 24), axis.text.y = element_text(size = 24),
-        axis.title.x = element_text(size = 24), axis.title.y = element_text(size = 24),
-        panel.grid.minor.x = element_blank(), panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(), panel.grid.major.x = element_blank(),
-        axis.line = element_line(colour = "black"), axis.ticks = element_line()
-    ) +
-    labs(
-        y = "",
-        x = "Threshold SCC (x)",
-        subtitle = "Mean Excess Function (MEF(x) = E[SCC - x | SCC > x])"
-    ) +
-    scale_x_continuous(breaks = scales::pretty_breaks(), limits = c(0, 1700)) +
-    scale_y_continuous(breaks = scales::pretty_breaks())
-
-ggsave("outputs/mean_excess_function.png", height = 10, width = 10)
 
 #############################
 #### TAIL INDEX ESTIMATES
