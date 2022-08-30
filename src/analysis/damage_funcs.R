@@ -18,7 +18,31 @@ ggplot(plotdfs, aes(T, dmg, group=dmgfunc, colour=scc.source)) +
     scale_y_continuous(labels=scales::percent) +
     scale_colour_manual(name=NULL, breaks=c('FUND', 'DICE', 'DICE+', 'PAGE', 'HowardSterner', 'Weitzman', 'DietzStern', 'Explicit'),
                         values=c('#1b9e77','#e6ab02','#a6761d','#d95f02','#7570b3','#e7298a','#66a61e', '#808080')) +
-xlab(NULL) + ylab("Consumption damages")
+    xlab(NULL) + ylab("Consumption damages")
+
+## Make heat map
+plotdfs$dbin <- cut(plotdfs$dmg, c(-Inf, seq(0, 1, by=.01)))
+plotdfs$tbin <- factor(plotdfs$T)
+grid <- matrix(0, length(levels(plotdfs$tbin)), length(levels(plotdfs$dbin)))
+for (ii in 1:nrow(plotdfs))
+    grid[as.numeric(plotdfs$tbin[ii]), as.numeric(plotdfs$dbin[ii])] <- grid[as.numeric(plotdfs$tbin[ii]), as.numeric(plotdfs$dbin[ii])] + plotdfs$count[ii]
+rownames(grid) <- levels(plotdfs$tbin)
+colnames(grid) <- levels(plotdfs$dbin)
+
+griddf <- melt(grid, c('T', 'dbin'))
+griddf$dmg <- seq(0, 1, by=.01)[as.numeric(griddf$dbin)]
+
+tops <- c('DICE-2016R2', 'FUND 3.7', 'HowardSterner (0.007438*T^2)', 'Weitzman', 'PAGE2009')
+
+ggplot(griddf, aes(T, dmg)) +
+    geom_raster(aes(fill=value)) +
+    geom_line(data=subset(plotdfs, dmgfunc %in% tops), aes(group=dmgfunc, colour=scc.source)) +
+    scale_y_continuous(labels=scales::percent, expand=c(0, 0)) + scale_x_continuous(expand=c(0, 0)) +
+    scale_fill_gradient("Estimates:", trans='log10', na.value='#ffffff', low='#fff7ec', high='#7f0000') +
+    scale_colour_manual(name="Examples:", breaks=c('FUND', 'DICE', 'PAGE', 'HowardSterner', 'Weitzman'),
+                        values=c('#1b9e77','#e6ab02','#66a61e','#7570b3','#e7298a')) +
+    xlab("Warming level (C)") + ylab("Consumption damages")
+ggsave("outputs/figures/dmgheat.png", width=6.5, height=4)
 
 ## ggplot(subset(plotdfs, scc.source == 'Explicit'), aes(T, dmg, group=dmgfunc, colour=added.by)) +
 ##     geom_line() +
@@ -44,6 +68,7 @@ ggplot(subset(dat, scc.synth > .01 & scc.synth < 1e5 & `Central Value ($ per ton
     scale_x_log10() + scale_y_log10() +
     theme_bw() + xlab("Synthetic SCC") +
     scale_colour_discrete(name="Damage function")
+ggsave("outputs/figures/sccsynth.pdf", width=6.5, height=4)
 
 dat$log.scc.2020usd <- log(dat$`Central Value ($ per ton CO2)`)
 dat$log.scc.2020usd[!is.finite(dat$log.scc.2020usd)] <- NA

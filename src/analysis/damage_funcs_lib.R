@@ -41,12 +41,14 @@ page.09.xy <- list(x=c(0.39244940321743643, 1.0132330046704723, 2.23261546445251
 dice.2007 <- function(T) 1 - 1 / (1 + 0.0023888 * T^2)
 fund.3.5 <- function(T) -0.007457*T + 0.002685*T^2 - 0.000100*T^3 + 0.000001*T^4
 dice.2013r <- function(T) 1 - 1 / (1 + 0.00267 * T^2)
+dice.2016r <- function(T) 1 - 1 / (1 + 0.00236 * T^2)
+dice.2016r2 <- function(T) 1 - 1 / (1 + 0.0023 * T^2)
 fund.3.8 <- approxfun(fund.3.8.xy$x, fund.3.8.xy$y)
 dice.2010 <- approxfun(dice.2010.xy$x, dice.2010.xy$y)
 page.09 <- approxfun(page.09.xy$x, page.09.xy$y)
 
 hardcodeddfs <- list("DICE-2007"=dice.2007, "DICE 2007"=dice.2007, "DICE2007"=dice.2007,
-                     "DICE2010"=dice.2010, "DICE 2010"=dice.2010,
+                     "DICE2010"=dice.2010, "DICE 2010"=dice.2010, "DICE2016R"=dice.2016r, "DICE-2016R2"=dice.2016r2,
                      "DICE-2013R"=dice.2013r, "DICE 2013R"=dice.2013r, "DICE2013"=dice.2013r, "DICE 2013"=dice.2013r,
                      "DICE2007, cubic damages (T^3)"=function(T) 1 - 1 / (1 + 0.0023888 * T^3),
                      "DICE-2007 + 0.00644 * (T / 4)^3"=function(T) dice.2007(T) + 0.00644 * (T / 4)^3,
@@ -59,7 +61,7 @@ hardcodeddfs <- list("DICE-2007"=dice.2007, "DICE 2007"=dice.2007, "DICE2007"=di
                      "DietzStern"=function(T) 1 - 1 / (1 + 0.0023888 * T^2 + 8.19e-5 * T^6.754))
 
 hardcodeddfs.source <- list("DICE-2007"="DICE", "DICE 2007"="DICE", "DICE2007"="DICE",
-                            "DICE2010"="DICE", "DICE 2010"="DICE",
+                            "DICE2010"="DICE", "DICE 2010"="DICE", "DICE2016R"="DICE", "DICE-2016R2"="DICE",
                             "DICE-2013R"="DICE", "DICE 2013R"="DICE", "DICE2013"="DICE", "DICE 2013"="DICE",
                             "DICE2007, cubic damages (T^3)"="DICE+",
                             "DICE-2007 + 0.00644 * (T / 4)^3"="DICE+",
@@ -127,7 +129,8 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
 
     if (!is.null(founddf)) {
         added.by <- paste(unique(dat$`Added By`[!is.na(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`) & dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc]), collapse=', ')
-        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=pmin(1, sapply(plotTT, founddf)), dmgfunc, scc.source, added.by))
+        count <- sum(dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc, na.rm=T)
+        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=pmin(1, sapply(plotTT, founddf)), dmgfunc, scc.source, added.by, count))
         dmg <- calc.scc(founddf, emitdf, year0, gdp0, discountrate)
         dat$scc.synth[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- dmg
         dat$scc.source[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- scc.source
