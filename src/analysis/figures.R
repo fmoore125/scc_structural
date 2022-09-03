@@ -229,23 +229,23 @@ diststrucdensities$type=as.factor(diststrucdensities$type)
 
 breaks_ln=c(0,2.5,5,7.5,10)
 a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=as.factor(type)))+geom_density_ridges(stat = "identity",scale=0.92,lwd=1)
-a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18),legend.position="top")+labs(x="2020 SCC (2020 $ per ton CO2)",y="",fill="")
+a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=12),legend.position="right")+labs(x="2010-2030 SCC (2020 $ per ton CO2)",y="",fill="")
 a=a+scale_x_continuous(limits=c(0,10),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4:5]),100)))+scale_fill_manual(values=c("steelblue4",NA),na.value=NA)
-a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=6,nudge_y=0.35)
+a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=4,nudge_y=0.35)
 
 #add in figure 2 data
 load(file="outputs/expert_survey_data_products/fig2surveydata.Rdat")
 
-#use reference value given in survey of $41.50 to convert % changes into SCC values
-refval=41.5
-helper=function(x) log((1+x/100)*refval)
-for(i in 2:10) fig2dat_vals[,i]=helper(fig2dat_vals[,i])
-fig2dat_vals=pivot_longer(fig2dat_vals,cols=2:10,names_to="StructuralChange",values_to="logscc")
-
-a=a+geom_density_ridges2(data=fig2dat_vals,aes(x=logscc,y=StructuralChange,group=StructuralChange),fill="darkgoldenrod",inherit.aes=FALSE,stat = "binline", binwidth = 0.1,scale=0.88)
-a=a+geom_vline(xintercept=log(refval),lty=3,col="#36c687",lwd=1)
-a
-
+# #use reference value given in survey of $41.50 to convert % changes into SCC values
+# refval=41.5
+# helper=function(x) log((1+x/100)*refval)
+# for(i in 2:10) fig2dat_vals[,i]=helper(fig2dat_vals[,i])
+# fig2dat_vals=pivot_longer(fig2dat_vals,cols=2:10,names_to="StructuralChange",values_to="logscc")
+# 
+# a=a+geom_density_ridges2(data=fig2dat_vals,aes(x=logscc,y=StructuralChange,group=StructuralChange),fill="darkgoldenrod",inherit.aes=FALSE,stat = "binline", binwidth = 0.1,scale=0.88)
+# a=a+geom_vline(xintercept=log(refval),lty=3,col="#36c687",lwd=1)
+# a
+# 
 #add graph to the side showing histograms of assessed quality
 fig2dat_qual=fig2dat_qual%>%
   pivot_longer(2:10,names_to="StructuralChange",values_to="ans")%>%
@@ -253,13 +253,21 @@ fig2dat_qual=fig2dat_qual%>%
 fig2dat_qual$ans=as.factor(fig2dat_qual$ans)
 fig2dat_qual$ans=fct_relevel(fig2dat_qual$ans,"Strongly Disagree","Disagree","Neither Agree nor Disagree","Agree","Strongly Agree")
 fig2dat_qual$ans=fct_recode(fig2dat_qual$ans,Neutral="Neither Agree nor Disagree")
+fig2dat_qual=fig2dat_qual%>%
+  group_by(StructuralChange,ans)%>%
+  dplyr::summarise(tot=n())
+fig2dat_qual$StructuralChange=fct_relevel(fig2dat_qual$StructuralChange,levels(diststrucdensities$StructuralChange))
 
-b=ggplot(fig2dat_qual,aes(x=ans,y=StructuralChange,group=StructuralChange))
-b=b+geom_density_ridges2(fill="#f7e057",col="black",stat = "binline", binwidth = 1,scale=0.95)
-b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 90,vjust = 1, hjust=0.5))+labs(y="",x="")
-b=b+scale_x_discrete(labels = function(x) str_wrap(x, width = 8))
+b=ggplot(fig2dat_qual,aes(y=StructuralChange,x=tot,fill=ans,group=StructuralChange))
+b=b+geom_bar(position="fill",stat="identity")+theme_bw()+scale_fill_manual(values=c('#7b3294','#c2a5cf','#f7f7f7','#a6dba0','#008837'))
+b=b+theme(text=element_text(size=12),legend.position="right")
+b=b+labs(x="To What Extent Do You Agree with the Statement \"Papers that Include This Structural Change in the Current Literature Provide a Better SCC than Those That Exclude It\"",y="",fill="")
+# 
+# b=b+geom_density_ridges2(fill="#f7e057",col="black",stat = "binline", binwidth = 1,scale=0.95)
+# b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 90,vjust = 1, hjust=0.5))+labs(y="",x="")
+# b=b+scale_x_discrete(labels = function(x) str_wrap(x, width = 8))
 
-a+b+plot_layout(widths=c(3,1))
+a/b+plot_annotation(tag_levels="A",theme=theme(plot.tag=element_text(size=16)))
 
 
 #calculate means
