@@ -132,3 +132,54 @@ rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="log.scc.synth")
 
 plot(rfmod_prof,geom="profiles")
+
+#add predictions from random forest
+
+samppred=1e5
+
+predcols=colnames(distrf[-which(colnames(distrf)%in%c("draw","row","y"))])
+sampdat=matrix(nrow=samppred,ncol=length(predcols))
+colnames(sampdat)=predcols
+sampdat=as.data.frame(sampdat)
+
+#set obvious ones
+sampdat[,grep("param",predcols)]="Yes"
+sampdat$backstop="No";sampdat$declining="Yes";sampdat$marketonly="No"
+sampdat$failure="No";sampdat$missing.scc.synth=FALSE
+
+#start with just 2020 values
+sampdat$sccyear_from2020=0
+
+#for synthetic scc - draw from literature values
+sampdat$log.scc.synth=sample(dat$log.scc.synth[-which(dat$log.scc.synth==0)],samppred,replace=TRUE)
+
+#for discount rate, sample from Moritz's expert survey results
+discountsurvey=read.csv("data/Drupp_et_al_2018_AEJ_Constant_SDR.csv")
+sampdat$discountrate=sample(discountsurvey$SDR[-which(is.na(discountsurvey$SDR))],samppred,replace=TRUE)
+
+#for structural changes, use data from expert survey on assessed quality of structural changes
+load("outputs/expert_survey_data_products/fig2surveydata.Rdat")
+
+#define mapping from agree-disagree to probabilities
+level_key = c("Strongly Disagree" = "0", "Disagree" = "0.25", "Neither Agree nor Disagree" = "0.5","Agree"="0.75","Strongly Agree"="1")
+
+#transform factor levels to probabilities
+strucprobs=fig2dat_qual%>%
+  mutate(across(-ID,~recode(.x,!!!level_key)))%>%
+  mutate(across(-ID,~as.numeric(.x)))
+
+averageprobs=colMeans(strucprobs[,-1],na.rm=T)
+
+struclookup=data.frame(name1=predcols[grep("struc",predcols)],name2=c("Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Epstein-Zin","Ambiguity/Model Uncertainty","Limited Substitutability","Inequality Aversion","Learning","Earth System"))
+
+for(i in 1:nrow(struclookup)){
+  probname=which(names(averageprobs)==struclookup$name2[i])
+  col=which(colnames(sampdat)==struclookup$name1[i])
+  sampdat[,col]=runif(samppred);sampdat[,col]=ifelse(sampdat[,col]<averageprobs[probname],"Yes","No")
+}
+
+predictions=predict(rfmod,sampdat)
+
+#add in residuals from random forest to get full distribution
+fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+
