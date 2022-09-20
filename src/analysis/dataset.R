@@ -2,6 +2,33 @@
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 
+authors <- read.csv("data/authorlist.csv")
+authnum <- length(unique(as.vector(as.matrix(authors[, -1])))) - 1
+authors$count <- rowSums(authors[, -1] != "")
+authors$included <- authors$ID_number %in% dat$ID_number
+
+dat$`SCC Year` <- as.numeric(as.character(dat$`SCC Year`))
+dat$uncinfo.ext <- ifelse(!is.na(dat$Min) | !is.na(dat$`0.1th`) | !is.na(dat$`99.9th`) | !is.na(dat$`Max`), 1, NA)
+dat$uncinfo.tail <- ifelse(!is.na(dat$`1th`) | !is.na(dat$`2.5th`) | !is.na(dat$`5th`) | !is.na(dat$`95th`) | !is.na(dat$`97.5th`) | !is.na(dat$`99th`), 1, NA)
+dat$uncinfo.central <- ifelse(!is.na(dat$`10th`) | !is.na(dat$`17th`) | !is.na(dat$`25th`) | !is.na(dat$`75th`) | !is.na(dat$`83rd`) | !is.na(dat$`90th`) | (!is.na(dat$`Central Value ($ per ton CO2)`) & !is.na(dat$`50th`) & dat$`Central Value ($ per ton CO2)` != dat$`50th`), 1, NA)
+dat$tail.level <- ifelse(!is.na(dat$`0.1th`), 99.9, ifelse(!is.na(dat$`99th`), 99, ifelse(!is.na(dat$`97.5th`), 97.5, ifelse(!is.na(dat$`95th`), 95, ifelse(!is.na(dat$`90th`), 90, ifelse(!is.na(dat$`83rd`), 83, ifelse(!is.na(dat$`75th`), 75, ifelse((!is.na(dat$`Central Value ($ per ton CO2)`) & !is.na(dat$`50th`) & dat$`Central Value ($ per ton CO2)` != dat$`50th`), 50, NA))))))))
+
+tbl.unique <- data.frame(label=c("Papers", "Estimates", "Authors"), N=nrow(dat), unique=as.integer(c(length(unique(dat$ID_number)), length(unique(dat$`Central Value ($ per ton CO2)`)), authnum)))
+tbl.value <- data.frame(label="Authors", N=sum(dat$ID_number %in% authors$ID_number), mean=mean(authors$count), min=min(authors$count), max=max(authors$count))
+tbl.present <- data.frame(label=c(), N=c(), present=c())
+for (col in c('SCC Year', 'Central Value ($ per ton CO2)', 'Reported Base Model SCC (if applicable)', 'Constant Discount Rate (%)', 'PRTP', 'EMUC', 'RRA', 'IES', 'tail.level'))
+    tbl.value <- rbind(tbl.value, data.frame(label=col, N=sum(!is.na(dat[, col])), mean=mean(dat[, col], na.rm=T), min=min(dat[, col], na.rm=T), max=max(dat[, col], na.rm=T)))
+for (col in c('Backstop Price?', 'Other Market Failure?', 'Declining Discounting?', 'Market Only Damages', 'Carbon Cycle', 'Climate Model', 'Tipping Points', 'Tipping Points2', 'Persistent / Growth Damages', 'Epstein-Zin', 'Ambiguity/Model Uncertainty', 'Limitedly-Substitutable Goods', 'Inequality Aversion', 'Learning', 'Alternative ethical approaches (not Discounted Utilitarianism)', 'uncinfo.ext', 'uncinfo.tail', 'uncinfo.central', 'TFP Growth', 'Population Growth', 'Emissions Growth', 'Transient Climate Response', 'Carbon Cycle2', 'Equilibrium Climate Sensitivity', 'Tipping Point Magnitude', 'Damage Function', 'Adaptation Rates', 'Income Elasticity', 'Constant Discount Rate', 'EMUC2', 'PRTP2', 'Risk Aversion (EZ Utility)'))
+    tbl.present <- rbind(tbl.present, data.frame(label=col, N=nrow(dat), present=sum(!is.na(dat[, col]))))
+for (col in c('Emissions Scenario', 'Socio-Economic Scenario', 'Damage Function Info: Model, Commonly-Used Function, or Function'))
+    tbl.unique <- rbind(tbl.unique, data.frame(label=col, N=sum(!is.na(dat[, col])), unique=length(unique(dat[, col]))))
+
+library(xtable)
+
+print(xtable(tbl.unique), include.rownames=F)
+print(xtable(tbl.present), include.rownames=F)
+print(xtable(tbl.value), include.rownames=F)
+
 library(ggplot2)
 
 dat2 <- dat %>% group_by(ID_number) %>% summarize(Year=Year[1])
