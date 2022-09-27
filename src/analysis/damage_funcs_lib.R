@@ -110,7 +110,7 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
     }
 }
 
-plotTT <- seq(0, 8, length.out=100)
+plotTT <- seq(0, 8, length.out=81)
 
 dat$scc.synth <- NA
 dat$scc.source <- NA
@@ -127,9 +127,14 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
 
     if (!is.null(founddf)) {
         added.by <- paste(unique(dat$`Added By`[!is.na(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`) & dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc]), collapse=', ')
-        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=pmin(1, sapply(plotTT, founddf)), dmgfunc, scc.source, added.by))
+        plotdfs <- rbind(plotdfs, data.frame(T=plotTT, dmg=pmin(1, sapply(plotTT, founddf)), dmgfunc, count=sum(dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc, na.rm=T), scc.source, added.by))
         dmg <- calc.scc(founddf, emitdf, year0, gdp0, discountrate)
         dat$scc.synth[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- dmg
         dat$scc.source[dat$`Damage Function Info: Model, Commonly-Used Function, or Function` == dmgfunc] <- scc.source
     }
 }
+
+## Add interaction system for ssc.synth
+dat$log.scc.synth <- log(dat$scc.synth)
+dat$missing.scc.synth <- !is.finite(dat$log.scc.synth)
+dat$log.scc.synth[dat$missing.scc.synth] <- 0

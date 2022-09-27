@@ -15,10 +15,28 @@ library(ggplot2)
 ggplot(plotdfs, aes(T, dmg, group=dmgfunc, colour=scc.source)) +
     geom_line() +
     coord_cartesian(ylim=c(-.1, 1)) +
-    scale_y_continuous(labels=scales::percent) +
+    scale_y_continuous(labels=scales::percent) + scale_x_continuous(expand=c(0, 0)) +
     scale_colour_manual(name=NULL, breaks=c('FUND', 'DICE', 'DICE+', 'PAGE', 'HowardSterner', 'Weitzman', 'DietzStern', 'Explicit'),
                         values=c('#1b9e77','#e6ab02','#a6761d','#d95f02','#7570b3','#e7298a','#66a61e', '#808080')) +
-xlab(NULL) + ylab("Consumption damages")
+xlab(NULL) + ylab("Consumption damages") + theme_bw()
+ggsave("outputs/figures/dmgcurves.pdf", width=5, height=4)
+
+## Plot distribution
+bydmgfunc <- dat %>% group_by(ID_number) %>% summarize(dmgfunc=`Damage Function Info: Model, Commonly-Used Function, or Function`, citweight=1/length(Reference)) %>% group_by(dmgfunc) %>% summarize(citweight=sum(citweight))
+plotdfs2 <- plotdfs %>% left_join(bydmgfunc)
+
+ggplot(subset(plotdfs2, T %in% c(1, 2, 3, 4, 6) & dmg > -1),
+       aes(pmin(.5, dmg), colour=scc.source, fill=scc.source)) +
+    facet_grid(paste(T, '°C') ~ .) +
+    geom_histogram(aes(weight=citweight)) +
+    scale_y_continuous("Citations represented", expand=c(0, 0)) +
+    scale_x_continuous("Consumption damages (%)", expand=c(0, 0), labels=scales::percent) +
+    scale_colour_manual(name=NULL, breaks=c('FUND', 'DICE', 'DICE+', 'PAGE', 'HowardSterner', 'Weitzman', 'DietzStern', 'Explicit'),
+                        values=c('#1b9e77','#e6ab02','#a6761d','#d95f02','#7570b3','#e7298a','#66a61e', '#808080')) +
+    scale_fill_manual(name=NULL, breaks=c('FUND', 'DICE', 'DICE+', 'PAGE', 'HowardSterner', 'Weitzman', 'DietzStern', 'Explicit'),
+                        values=c('#1b9e77','#e6ab02','#a6761d','#d95f02','#7570b3','#e7298a','#66a61e', '#808080')) +
+    theme_bw()
+ggsave("outputs/figures/dmgdist.pdf", width=5, height=4)
 
 ## ggplot(subset(plotdfs, scc.source == 'Explicit'), aes(T, dmg, group=dmgfunc, colour=added.by)) +
 ##     geom_line() +
