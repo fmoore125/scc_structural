@@ -7,6 +7,7 @@ library(MetBrewer)
 library(lfe)
 library(forcats)
 library(zoo)
+library(patchwork)
 
 dist=fread(file="outputs/distribution_v2.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
@@ -56,24 +57,26 @@ dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-203
 
 distplot=dist
 distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.006)
-distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))%>%
-  filter(draw>quantile(draw,0.005)&draw<quantile(draw,0.995))
+distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))
 
 quants=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)
-pfuns=map(quants,~partial(quantile,probs=.x))
+pfuns=map(quants,~partial(quantile,probs=.x,na.rm=T))
 
 summarydist=distplot%>%
+  filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
   group_by(yeargroup)%>%
   summarize_at(vars(draw),funs(!!!pfuns))
-colnames(summarydist)[2:8]=c("lowest","xmin","lower","middle","upper","xmax","highest")
-summarydist$y=c(-0.004,-0.004,-0.006)
-  
-a=ggplot(distplot,aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(y=y,xmin=xmin,xlower=lower,xmiddle=middle,xupper=upper,xmax=xmax,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity")+geom_density(aes(x=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")
-a=a+theme_bw()+labs(x="SCC ($ per ton CO2)",y="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500,2000),limits=c(-100,2500))
+colnames(summarydist)[2:8]=c("lowest","min","lower","middle","upper","max","highest")
+summarydist$y=c(-0.004,-0.004)
+
+a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030","2030-2070")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")+coord_flip()
+a=a+theme_bw()+labs(y="SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
+a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1500, by=100)), limits=c(-100,1500), expand=c(0, 0))
+#add dashed lines extending boxplots to 1% and 99%
+a=a+geom_segment(data=summarydist,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
 #add IWG values
-iwg=read.csv("C:/Users/fmoore/Documents/GitHub/scc_structural/outputs/iwgruns.csv",row.names=1)
+iwg=read.csv("outputs/iwgruns.csv",row.names=1)
 iwg=iwg[,-(1+grep("PAGE.59",colnames(iwg)):dim(iwg)[2])]
 #just keep central years from ranges - 2020 and 2050
 iwg=iwg[,which(iwg[1,]==2020|iwg[1,]==2050)]
@@ -83,26 +86,45 @@ iwgdist=pivot_longer(iwgdist,cols=1:2,names_to=c("yeargroup"))
 extra=data.frame(yeargroup=c('2070-2100'),value=NA)
 iwgdist=rbind(iwgdist,extra)
 iwgdist$yeargroup=fct_recode(iwgdist$yeargroup,"2010-2030"="early","2030-2070"="late")
-iwgdist=iwgdist[-which(iwgdist$value<quantile(iwgdist$value,0.01,na.rm=T)|iwgdist$value>quantile(iwgdist$value,0.99,na.rm=T)),]
 
-a=a+geom_boxplot(aes(x=value,alpha=0,y=-0.01),width=0.0035,data=iwgdist,fill="white",inherit.aes=FALSE)+scale_alpha_continuous(guide="none")
-ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(750,750))
-a=a+geom_text(data=ann_text,aes(label=text,y=-0.01,x=x))
+iwgdist_summary=iwgdist%>%
+  filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
+  group_by(yeargroup)%>%
+  summarize_at(vars(value),funs(!!!pfuns))
+colnames(iwgdist_summary)[2:8]=c("lowest","min","lower","middle","upper","max","highest")
+iwgdist_summary$y=c(-0.01,-0.01)
+
+a=a+geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),width=0.0035,data=iwgdist_summary,fill="white",inherit.aes=FALSE,stat="identity")
+ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(550,800))
+a=a+geom_text(data=ann_text,aes(label=text,x=-0.01,y=x))
+a=a+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
 #add in expert survey results as well to upper panel
 #(survey data processed to produce aggregate distributions in "src/survey_analysis/graphs.R")
 surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
 surveydat$yeargroup=as.factor("2010-2030")
 
-cols=met.brewer("Degas",2,type="discrete")
-a=a+geom_boxplot(data=surveydat%>%filter(type=="Lit"),aes(x=dist,y=-0.015),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[1])
-a=a+geom_boxplot(data=surveydat%>%filter(type=="Tru"),aes(x=dist,y=-0.02),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[2])
+cols=c("seagreen4","palegreen3")
+surveydat_summary=surveydat%>%
+  group_by(type,yeargroup)%>%
+  summarize_at(vars(dist),funs(!!!pfuns))
+colnames(surveydat_summary)[3:9]=c("lowest","min","lower","middle","upper","max","highest")
+surveydat_summary$y=c(-0.015,-0.02)
+#manually replace value to avoid figure cutoff
+surveydat_summary$highest[which(surveydat_summary$highest>1500)]=1499
 
-ann_text2=data.frame(text=c("Expert Survey: Literature Estimate","Expert Survey: Comprehensive Estimate"),yeargroup=factor(rep("2010-2030",2)),x=c(1500,1500),y=c(-0.013,-0.018),type=c("Lit","Tru"))
-a=a+geom_text(data=ann_text2,aes(x=x,y=y,label=text,col=type),inherit.aes=FALSE)
+a=a+geom_boxplot(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[1],stat="identity")
+a=a+geom_segment(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,xend=y,y=lowest,yend=min),lty=2,col=cols[1])+geom_segment(data=surveydat_summary%>%filter(type=="Lit"),aes(x=y,xend=y,y=highest,yend=max),lty=2,col=cols[1])
+
+a=a+geom_boxplot(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),inherit.aes=FALSE,width=0.0035,fill="white",col=cols[2],stat="identity")
+a=a+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=lowest,yend=min),lty=2,col=cols[2])+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=highest,yend=max),lty=2,col=cols[2])
+
+ann_text2=data.frame(text=c("Expert Survey: Literature 2020 Estimate","Expert Survey: Comprehensive 2020 Estimate"),yeargroup=factor(rep("2010-2030",2)),y=c(1000,1000),x=c(-0.013,-0.018),type=c("Lit","Tru"))
+a=a+geom_text(data=ann_text2,aes(y=y,x=x,label=text,col=type),inherit.aes=FALSE)
 a=a+scale_color_manual(values=cols,guide="none")
 x11()
 a
+ggsave("figures/figure1.pdf", width=13, height=6)
 
 #different figure looking at publication date
 dist$pubyear=dat$Year[dist$row]
@@ -164,7 +186,7 @@ struc=dat%>%
 
 diststruc=cbind(dist,struc[dist$row,])
 
-diststruc=diststruc%>%rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
+diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
@@ -172,19 +194,20 @@ diststruc=diststruc%>%
 diststruc$Presence=fct_collapse(diststruc$Presence,No=c("-1.0","0"),Yes=c("1.0","Calibrated",1))
 
 diststrucdensities=diststruc%>%
+  filter(yeargroup=="2010-2030")%>%
   group_by(StructuralChange)%>%
-  filter(Presence==1&draw>0)%>%
+  filter(Presence=="Yes"&draw>0)%>%
   mutate(logscc=log(draw))%>%
   group_modify(~ ggplot2:::compute_density(.x$logscc, NULL,bw=0.4))%>%
-  rename(logscc=x)
+  dplyr::rename(logscc=x)
 
 #find rows with no structural changes at all for "reference" density
 reference=which(apply(struc,MARGIN=1,FUN=function(x) sum(x=="0"))==9)
 referencedensity=diststruc%>%
-  filter(row%in%reference&draw>0)%>%
+  filter(yeargroup=="2010-2030"&row%in%reference&draw>0)%>%
   mutate(logscc=log(draw))%>%
   group_modify(~ ggplot2:::compute_density(.x$logscc, NULL,bw=0.4))%>%
-  rename(logscc=x)
+  dplyr::rename(logscc=x)
 
 changes=unique(diststruc$StructuralChange);referencedensity$StructuralChange=changes[1]
 for(i in 2:length(changes)){temp=referencedensity[,1:6];temp$StructuralChange=changes[i];referencedensity=rbind(referencedensity,temp)}
@@ -199,17 +222,53 @@ diststrucdensities$StructuralChange=ordered(diststrucdensities$StructuralChange,
 diststruc$paper=dat$ID_number[diststruc$row]
 papers=diststruc%>%
   group_by(StructuralChange)%>%
-  filter(Presence==1)%>%
+  filter(Presence=="Yes"&yeargroup=="2010-2030")%>%
   dplyr::summarise(npapers=length(unique(paper)),n=length(unique(row)))
 
 diststrucdensities$type=as.factor(diststrucdensities$type)
 
 breaks_ln=c(0,2.5,5,7.5,10)
 a=ggplot(diststrucdensities,aes(x=logscc,y=StructuralChange,height=density,group=interaction(type,StructuralChange),fill=as.factor(type)))+geom_density_ridges(stat = "identity",scale=0.92,lwd=1)
-a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=18))+labs(x="SCC (2020 $ per ton CO2)",y="",fill="")
-a=a+scale_x_continuous(limits=c(0,10),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4:5]),100)))+scale_fill_manual(values=c("steelblue4",NA))
-a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=6,nudge_y=0.35)
-a
+a=a+theme_ridges()+theme_bw()+theme(text=element_text(size=12),legend.position="right")+labs(x="2010-2030 SCC (2020 $ per ton CO2)",y="",fill="")
+a=a+scale_x_continuous(limits=c(0,10),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4:5]),100)))+scale_fill_manual(values=c("steelblue4",NA),na.value=NA)
+a=a+geom_text(data=papers,aes(label=paste0("n=",npapers," (",n,")"),y=StructuralChange,x=9.2),inherit.aes=FALSE,size=4,nudge_y=0.35)
+
+#add in figure 2 data
+load(file="outputs/expert_survey_data_products/fig2surveydata.Rdat")
+
+# #use reference value given in survey of $41.50 to convert % changes into SCC values
+# refval=41.5
+# helper=function(x) log((1+x/100)*refval)
+# for(i in 2:10) fig2dat_vals[,i]=helper(fig2dat_vals[,i])
+# fig2dat_vals=pivot_longer(fig2dat_vals,cols=2:10,names_to="StructuralChange",values_to="logscc")
+# 
+# a=a+geom_density_ridges2(data=fig2dat_vals,aes(x=logscc,y=StructuralChange,group=StructuralChange),fill="darkgoldenrod",inherit.aes=FALSE,stat = "binline", binwidth = 0.1,scale=0.88)
+# a=a+geom_vline(xintercept=log(refval),lty=3,col="#36c687",lwd=1)
+# a
+# 
+#add graph to the side showing histograms of assessed quality
+fig2dat_qual=fig2dat_qual%>%
+  pivot_longer(2:10,names_to="StructuralChange",values_to="ans")%>%
+  filter(!is.na(ans))
+fig2dat_qual$ans=as.factor(fig2dat_qual$ans)
+fig2dat_qual$ans=fct_relevel(fig2dat_qual$ans,"Strongly Disagree","Disagree","Neither Agree nor Disagree","Agree","Strongly Agree")
+fig2dat_qual$ans=fct_recode(fig2dat_qual$ans,Neutral="Neither Agree nor Disagree")
+fig2dat_qual=fig2dat_qual%>%
+  group_by(StructuralChange,ans)%>%
+  dplyr::summarise(tot=n())
+fig2dat_qual$StructuralChange=fct_relevel(fig2dat_qual$StructuralChange,levels(diststrucdensities$StructuralChange))
+
+b=ggplot(fig2dat_qual,aes(y=StructuralChange,x=tot,fill=ans,group=StructuralChange))
+b=b+geom_bar(position="fill",stat="identity")+theme_bw()+scale_fill_manual(values=c('#7b3294','#c2a5cf','#f7f7f7','#a6dba0','#008837'))
+b=b+theme(text=element_text(size=12),legend.position="right")
+b=b+labs(x="To What Extent Do You Agree with the Statement \"Papers that Include This Structural Change in the Current Literature Provide a Better SCC than Those That Exclude It\"",y="",fill="")
+# 
+# b=b+geom_density_ridges2(fill="#f7e057",col="black",stat = "binline", binwidth = 1,scale=0.95)
+# b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 90,vjust = 1, hjust=0.5))+labs(y="",x="")
+# b=b+scale_x_discrete(labels = function(x) str_wrap(x, width = 8))
+
+a/b+plot_annotation(tag_levels="A",theme=theme(plot.tag=element_text(size=16)))
+
 
 #calculate means
 means=diststrucdensities%>%
