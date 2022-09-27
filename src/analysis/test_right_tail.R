@@ -14,7 +14,12 @@ dat = dat |>
     clean_names() |> 
     rename(damage_tipping = tipping_points2,
            climate_tipping = tipping_points) |> 
-    mutate(earth_system = max(carbon_cycle, climate_model)) |> 
+    # when doing the max we need numeric values here and not NA
+    mutate(carbon_cycle = as.numeric(carbon_cycle),
+           carbon_cycle = ifelse(is.na(carbon_cycle), 0, 1),
+           climate_model = as.numeric(climate_model),
+           climate_model = ifelse(is.na(climate_model), 0, 1)) |>
+    mutate(earth_system = climate_model | carbon_cycle) |> 
     select(-carbon_cycle, -climate_model) |> 
     relocate(id_number:climate_tipping, earth_system)
 
@@ -61,58 +66,6 @@ mef_df_alt = map_df(unique(mef_df_alt),
                     })
 
 #############################
-#### MEAN EXCESS PLOT
-#############################
-
-# make binscattered MEF plot
-mef_bins = mef_df |> 
-    filter(x > quantile(resampled_df$central_value_per_ton_co2, .5, na.rm = T)) |> 
-    filter(x < quantile(resampled_df$central_value_per_ton_co2, .99, na.rm = T)) |> 
-    mutate(bins = ntile(x, 100)) |> 
-    group_by(bins) |> 
-    summarise(me = mean(me, na.rm = T),
-              x = mean(x, na.rm = T))
-
-mef_alt_bins = mef_df_alt |> 
-    filter(x > quantile(resampled_df$central_value_per_ton_co2, .5, na.rm = T)) |> 
-    filter(x < quantile(resampled_df$central_value_per_ton_co2, .99, na.rm = T)) |> 
-    mutate(bins = ntile(x, 100)) |> 
-    group_by(bins) |> 
-    summarise(me = mean(me, na.rm = T),
-              x = mean(x, na.rm = T))
-
-ggplot() +
-    geom_point(data = mef_bins, aes(x = x, y = me), size = 3, shape = 16) +
-    geom_point(data = mef_alt_bins, aes(x = x, y = me), size = 3, shape = 8) +
-    annotate(
-        geom = "text", x = 900, y = 3700, label = "Full Sample", hjust = 0,
-        size = 7
-    ) +
-    annotate(
-        geom = "text", x = 900, y = 1000, label = "Exclude Nordhaus (2019)", hjust = 0,
-        size = 7
-    ) +
-    theme_minimal() +
-    theme(
-        legend.position = "none",
-        title = element_text(size = 24),
-        axis.text.x = element_text(size = 24), axis.text.y = element_text(size = 24),
-        axis.title.x = element_text(size = 24), axis.title.y = element_text(size = 24),
-        panel.grid.minor.x = element_blank(), panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(), panel.grid.major.x = element_blank(),
-        axis.line = element_line(colour = "black"), axis.ticks = element_line()
-    ) +
-    labs(
-        y = "",
-        x = "Threshold SCC (x)",
-        subtitle = "Mean Excess Function (MEF(x) = E[SCC - x | SCC > x])"
-    ) +
-    scale_x_continuous(breaks = scales::pretty_breaks(), limits = c(0, 1700)) +
-    scale_y_continuous(breaks = scales::pretty_breaks())
-
-ggsave("outputs/mean_excess_function.png", height = 10, width = 10)
-
-#############################
 #### TAIL INDEX ESTIMATES
 #############################
 
@@ -126,29 +79,29 @@ ggsave("outputs/mean_excess_function.png", height = 10, width = 10)
 
 results = list()
 results[["(1)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .95)), 
-                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
+                         data = mef_df_alt |> filter(x > quantile(x, .95)), 
+                         weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
 results[["(2)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .90)), 
-                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
+                         data = mef_df_alt |> filter(x > quantile(x, .90)), 
+                         weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
 results[["(3)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .75)), 
-                     weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
+                         data = mef_df_alt |> filter(x > quantile(x, .75)), 
+                         weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
 results[["(4)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > 0), 
-                     weights = mef_df_alt$n[mef_df_alt$x > 0])
+                         data = mef_df_alt |> filter(x > 0), 
+                         weights = mef_df_alt$n[mef_df_alt$x > 0])
 results[["(5)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .95)), 
-                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
+                         data = mef_df_alt |> filter(x > quantile(x, .95)), 
+                         weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
 results[["(6)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .90)), 
-                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
+                         data = mef_df_alt |> filter(x > quantile(x, .90)), 
+                         weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
 results[["(7)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > quantile(x, .75)), 
-                     weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
+                         data = mef_df_alt |> filter(x > quantile(x, .75)), 
+                         weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
 results[["(8)"]] = feols(me ~ x, 
-                     data = mef_df_alt |> filter(x > 0), 
-                     weights = mef_df_alt$n[mef_df_alt$x > 0])
+                         data = mef_df_alt |> filter(x > 0), 
+                         weights = mef_df_alt$n[mef_df_alt$x > 0])
 
 betas = lapply(results, function(x) coefficients(x)[2]) |> 
     cbind() |> 
@@ -232,8 +185,7 @@ odds_early_df = expand.grid(
     # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
     mutate(odds_ratio_early = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
     select(parameter, odds_ratio_early) |> 
-    arrange(desc(odds_ratio_early)) |> 
-    mutate(across(odds_ratio_early, ~replace(., is.na(.), 0))) 
+    arrange(desc(odds_ratio_early)) 
 
 #### Mid period
 
@@ -275,8 +227,7 @@ odds_mid_df = expand.grid(
     # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
     mutate(odds_ratio_mid = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
     select(parameter, odds_ratio_mid) |> 
-    arrange(desc(odds_ratio_mid)) |> 
-    mutate(across(odds_ratio_mid, ~replace(., is.na(.), 0))) 
+    arrange(desc(odds_ratio_mid)) 
 
 #### Late period
 
@@ -319,8 +270,7 @@ odds_late_df = expand.grid(
     # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
     mutate(odds_ratio_late = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
     select(parameter, odds_ratio_late) |> 
-    arrange(desc(odds_ratio_late)) |> 
-    mutate(across(odds_ratio_late, ~replace(., is.na(.), 0))) 
+    arrange(desc(odds_ratio_late)) 
 
 odds_ratio_df =
     odds_early_df |> 
@@ -357,6 +307,13 @@ n_uncert = sum(odds_ratio_df$Class == "Parametric Uncertainty")
 
 names(odds_ratio_df)[2] = " "
 
+odds_ratio_df$`2010-2030`[is.nan(odds_ratio_df$`2010-2030`)] = NA
+odds_ratio_df$`2030-2070`[is.nan(odds_ratio_df$`2030-2070`)] = NA
+odds_ratio_df$`2070-2100`[is.nan(odds_ratio_df$`2070-2100`)] = NA
+
+# Infs are: no observations of the change and not in tail or no observations of in the tail and not change
+# but we have the other two
+# NaNs are: we dont observe the change in that time period or its always in the tail or always not in the tail
 odds_table <- kbl(odds_ratio_df |> select(-Class), 
                   format = "latex",
                   caption = "Odds ratio of being in the top 10 percent of SCC values.",
@@ -369,7 +326,7 @@ odds_table <- kbl(odds_ratio_df |> select(-Class),
     pack_rows(index = c("Parametric Uncertainty" = n_uncert, "Structural Change" = n_struct)) %>%
     add_header_above(c(" " = 1, "Odds Ratios for Being in Right Tail of Distribution" = 3)) %>%
     kable_styling() %>% 
-    footnote(general = "Footnote here.", 
+    footnote(general = "The values are the odds ratio of being in the top 10 percent of the SCC distribution in each of the three periods comparing SCCs computed using the listed change to those computed without. NA values correspond to when we do not have SCC values with the listed change during that time period (e.g. emissions growth uncertainty in the late period). 0 values correspond to the SCC never being in the top 10 percent with the listed change.", 
              threeparttable = T,
              fixed_small_size = T)
 

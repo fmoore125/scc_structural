@@ -3,6 +3,12 @@ setwd("~/research/scciams/scc_structural")
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/all_scc_lib.R")
 
+if (.Platform$OS.type != "unix")
+    pdffunc <- grDevices::cairo_pdf
+else
+    pdffunc <- pdf
+
+
 dat$`SCC Year` <- as.numeric(dat$`SCC Year`)
 
 dat$log.scc.2020usd <- log(dat$`Central Value ($ per ton CO2)`)
@@ -16,6 +22,7 @@ dat$log.scc.2020usd[!is.finite(dat$log.scc.2020usd)] <- NA
 
 source("src/analysis/damage_funcs_lib.R")
 
+## Redo log.scc.synth so I get NAs
 dat$log.scc.synth <- log(dat$scc.synth)
 
 datall <- get.all.scc(dat)
@@ -108,7 +115,7 @@ for (period in c('2010-2030', '2030-2070', '2070-2100', '2010-2100')) {
 
     ## rpart.plot(mod)
 
-    grDevices::cairo_pdf(paste0("figures/levels-", period, ".pdf"), width=6.5, height=4)
+    pdffunc(paste0("outputs/figures/levels-", period, ".pdf"), width=6.5, height=4)
     my.rpart.plot(mod)
     dev.off()
 
@@ -135,7 +142,7 @@ for (period in c('2010-2030', '2030-2070', '2070-2100', '2010-2100')) {
 
     mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=subdat, weights=subwgt)
 
-    grDevices::cairo_pdf(paste0("figures/ratios-", period, ".pdf"), width=6.5, height=4)
+    pdffunc(paste0("outputs/figures/ratios-", period, ".pdf"), width=6.5, height=4)
     my.rpart.plot(mod)
     dev.off()
 
@@ -150,7 +157,7 @@ for (period in c('2010-2030', '2030-2070', '2070-2100', '2010-2100')) {
 
     mod <- rpart(resid ~ `Backstop Price?` + `Other Market Failure?` + `Ambiguity/Model Uncertainty` + `Earth System` + `Climate Tipping Point` + `Damages Tipping Point` + `Epstein-Zin` + `Inequality Aversion` + `Learning` + `Limitedly-Substitutable Goods` + `Persistent / Growth Damages` + `Alternative ethical approaches`, data=subdat, weights=subwgt)
 
-    grDevices::cairo_pdf(paste0("figures/ratios-all-", period, ".pdf"), width=6.5, height=4)
+    pdffunc(paste0("outputs/figures/ratios-all-", period, ".pdf"), width=6.5, height=4)
     my.rpart.plot(mod)
     dev.off()
 }
