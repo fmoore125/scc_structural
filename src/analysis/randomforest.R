@@ -8,6 +8,8 @@ library(lfe)
 library(patchwork)
 library(MetBrewer)
 library(tidyverse)
+library(ggridges)
+library(plyr)
 
 dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -126,7 +128,23 @@ rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=dist
 rfmod_diag=model_diagnostics(rfmod_explained)
 save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
 
-rfmod_mod=model_parts(rfmod_explained);plot(rfmod_mod)
+rfmod_mod=model_parts(rfmod_explained);
+rfmod_mod$variable=fct_recode(rfmod_mod$variable,"SCC Year"="sccyear_from2020","Discount Rate"="discountrate","Log Damage-based SCC"="log.scc.synth","Declining DR"="declining","Earth System"="Earth_system_struc","Climate Tipping Points"="Tipping.Points_struc","Damages Tipping Points"="Tipping.Points2_struc","Growth Damages"="Persistent...Growth.Damages_struc","Epstein Zin"="Epstein.Zin_struc","Ambiguity"="Ambiguity.Model.Uncertainty_struc","Limited-Substitutability"="Limitedly.Substitutable.Goods_struc","Inequality Aversion"="Inequality.Aversion_struc","Learning"="Learning_struc","TFP Growth"="TFP.Growth_param","Pop Growth"="Population.Growth_param","Emissions Growth"="Emissions.Growth_param","Trans. Climate Resp"="Transient.Climate.Response_param","Carbon Cycle (param)"="Carbon.Cycle2_param","Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_param","Tipping Point Size"="Tipping.Point.Magnitude_param","Damage Function"="Damage.Function_param","Adaptation Rates"="Adaptation.Rates_param","Income Elasticity"="Income.Elasticity_param","Const. Disc. Rate"="Constant.Discount.Rate_param","EMUC"="EMUC2_param","PRTP"="PRTP2_param","Risk Aversion"="Risk.Aversion..EZ.Utility._param","Backstop Price"="backstop","Other Market Failure"="failure","Market Only Damages"="marketonly","Missing Damage SCC"="missing.scc.synth")
+#customize feature importance plot
+moddat=rfmod_mod%>%
+  group_by(variable)%>%
+  dplyr::summarize(mean=mean(dropout_loss),min=min(dropout_loss),max=max(dropout_loss))%>%
+  filter(variable!="_baseline_"&variable!="_full_model_")%>%
+  arrange(desc(mean))
+moddat$variable=fct_reorder(moddat$variable,moddat$mean)
+moddat$type=c("Other","Other","Damage Func","Struc","Struc","Damage Func","Damage Func","Struc","Param","Struc","Struc","Struc","Param","Param","Struc","Param","Param","Struc","Param","Param","Struc","Param","Param","Param","Other","Param","Param","Param","Other","Other","Other")
+moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
+
+a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
+a=a+theme_bw()+geom_errorbar(col="black",width=0)+labs(title="Feature Importance, Random Forest Model",y="",x="RMSE Loss After Permutations",color="")
+a=a+scale_color_manual(values=met.brewer(name="Lakota", n=4, type="discrete"),labels=c("Structural","Parametric","Damage Func.","Other"))
+a=a+theme(legend.position = c(0.92, 0.2))
+
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent...Growth.Damages_struc")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate")
 rfmod_prof=model_profile(rfmod_explained,N=500,variable="log.scc.synth")
@@ -135,7 +153,7 @@ plot(rfmod_prof,geom="profiles")
 
 #add predictions from random forest
 
-samppred=1e5
+samppred=1e6
 
 predcols=colnames(distrf[-which(colnames(distrf)%in%c("draw","row","y"))])
 sampdat=matrix(nrow=samppred,ncol=length(predcols))
@@ -146,10 +164,6 @@ sampdat=as.data.frame(sampdat)
 sampdat[,grep("param",predcols)]="Yes"
 sampdat$backstop="No";sampdat$declining="Yes";sampdat$marketonly="No"
 sampdat$failure="No";sampdat$missing.scc.synth=FALSE
-
-#start with just 2020 values
-sampdat$sccyear_from2020=0
-
 #for synthetic scc - draw from literature values
 sampdat$log.scc.synth=sample(dat$log.scc.synth[-which(dat$log.scc.synth==0)],samppred,replace=TRUE)
 
@@ -178,8 +192,35 @@ for(i in 1:nrow(struclookup)){
   sampdat[,col]=runif(samppred);sampdat[,col]=ifelse(sampdat[,col]<averageprobs[probname],"Yes","No")
 }
 
-predictions=predict(rfmod,sampdat)
+#loop through a set of years to get scc distribution over time
+years=c(2020,2030,2040,2050,2060,2070,2080,2090,2100)
 
-#add in residuals from random forest to get full distribution
-fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+predictionyears=matrix(nrow=samppred,ncol=length(years))
 
+for(i in 1:length(years)){
+  sampdat$sccyear_from2020=years[i]-2020
+  
+  predictions=predict(rfmod,sampdat)
+  
+  #add in residuals from random forest to get full distribution
+  fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+  predictionyears[,i]=fulldist
+  print(years[i])
+}
+
+means=colMeans(exp(predictionyears))
+quants=apply(predictionyears,MARGIN=2,FUN=function(x) quantile(x,c(0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975)))
+
+colnames(predictionyears)=years
+  
+temp=as.tibble(predictionyears)%>%
+  pivot_longer(everything(),names_to="year",values_to="scc")%>%
+  filter(year%in%c(2020,2050,2100))%>%
+  group_by(year)%>%
+  filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc)%>%
+  group_modify(~ ggplot2:::compute_density(.x$scc, NULL,bw=0.1))
+
+breaks_ln=c(0,2.5,5,7.5)
+a=ggplot(temp,aes(x=x,y=as.factor(year),group=year,height=density))+theme_ridges()+geom_density_ridges(stat="identity",lwd=0.75,fill="#f5dc62",scale=0.92)
+a=a+labs(x="SCC ($ per ton CO2)",y="")+scale_x_continuous(limits=c(0,8),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4]),100)))
+a
