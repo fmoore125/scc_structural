@@ -71,7 +71,7 @@ summarydist$y=c(-0.004,-0.004)
 
 a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030","2030-2070")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")+coord_flip()
 a=a+theme_bw()+labs(y="SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1500, by=100)), limits=c(-100,1500), expand=c(0, 0))
+a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1500, by=100)), limits=c(-100,1800), expand=c(0, 0))
 #add dashed lines extending boxplots to 1% and 99%
 a=a+geom_segment(data=summarydist,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist,aes(x=y,xend=y,y=max,yend=highest),lty=2)
 
@@ -241,11 +241,11 @@ load(file="outputs/expert_survey_data_products/fig2surveydata.Rdat")
 # helper=function(x) log((1+x/100)*refval)
 # for(i in 2:10) fig2dat_vals[,i]=helper(fig2dat_vals[,i])
 # fig2dat_vals=pivot_longer(fig2dat_vals,cols=2:10,names_to="StructuralChange",values_to="logscc")
-# 
+#
 # a=a+geom_density_ridges2(data=fig2dat_vals,aes(x=logscc,y=StructuralChange,group=StructuralChange),fill="darkgoldenrod",inherit.aes=FALSE,stat = "binline", binwidth = 0.1,scale=0.88)
 # a=a+geom_vline(xintercept=log(refval),lty=3,col="#36c687",lwd=1)
 # a
-# 
+#
 #add graph to the side showing histograms of assessed quality
 fig2dat_qual=fig2dat_qual%>%
   pivot_longer(2:10,names_to="StructuralChange",values_to="ans")%>%
@@ -262,7 +262,7 @@ b=ggplot(fig2dat_qual,aes(y=StructuralChange,x=tot,fill=ans,group=StructuralChan
 b=b+geom_bar(position="fill",stat="identity")+theme_bw()+scale_fill_manual(values=c('#7b3294','#c2a5cf','#f7f7f7','#a6dba0','#008837'))
 b=b+theme(text=element_text(size=12),legend.position="right")
 b=b+labs(x="To What Extent Do You Agree with the Statement \"Papers that Include This Structural Change in the Current Literature Provide a Better SCC than Those That Exclude It\"",y="",fill="")
-# 
+#
 # b=b+geom_density_ridges2(fill="#f7e057",col="black",stat = "binline", binwidth = 1,scale=0.95)
 # b=b+theme_bw()+theme(text=element_text(size=12),axis.text.y=element_blank(),axis.text.x = element_text(angle = 90,vjust = 1, hjust=0.5))+labs(y="",x="")
 # b=b+scale_x_discrete(labels = function(x) str_wrap(x, width = 8))
