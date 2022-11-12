@@ -10,6 +10,7 @@ library(MetBrewer)
 library(tidyverse)
 library(ggridges)
 library(plyr)
+library(xtable)
 
 dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -122,7 +123,7 @@ distrf=distrf%>%filter(sccyear_from2020<=80)
 #remove 2.6% of distribution with values <=0 that can't be logged
 distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
-rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="permutation")
+rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected")
 
 rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
 rfmod_diag=model_diagnostics(rfmod_explained)
@@ -179,8 +180,8 @@ level_key = c("Strongly Disagree" = "0", "Disagree" = "0.25", "Neither Agree nor
 
 #transform factor levels to probabilities
 strucprobs=fig2dat_qual%>%
-  mutate(across(-ID,~recode(.x,!!!level_key)))%>%
-  mutate(across(-ID,~as.numeric(.x)))
+  dplyr::mutate(across(-ID,~recode(.x,!!!level_key)))%>%
+  dplyr::mutate(across(-ID,~as.numeric(.x)))
 
 averageprobs=colMeans(strucprobs[,-1],na.rm=T)
 
@@ -210,6 +211,12 @@ for(i in 1:length(years)){
 
 means=colMeans(exp(predictionyears))
 quants=apply(predictionyears,MARGIN=2,FUN=function(x) quantile(x,c(0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975)))
+rf_table=rbind(exp(quants),means)
+colnames(rf_table)=years
+rownames(rf_table)=c(rownames(rf_table)[1:9],"Mean")
+
+tab<-xtable(s, caption= "summary statistics of air pollution data", 
+            align=c("|c","|c","|c","|c","|c|"))
 
 colnames(predictionyears)=years
   
