@@ -1,3 +1,5 @@
+## setwd("~/research/scciams/scc_structural")
+
 library(tidyverse)
 library(forcats)
 library(rriskDistributions)
@@ -28,12 +30,25 @@ fig1dat$xj=jitter(as.numeric(as.factor(fig1dat$type)),amount=0.25)
 distwrapper=function(central,lower,upper){
   #creates a wrapper to use pmap on the fig1dat dataframe to fit distribution and take 1000 samples
   case=ifelse(is.na(lower),ifelse(is.na(upper),1,2),ifelse(is.na(upper),3,4))
-  
-  if(case==2){generate.pdf(mu=central,qs=0.975,as=upper,1000)}
+
+  if(case==2){generate.exactmu(mu=central,qs=0.975,as=upper,1000)}
   if(case==1){rep(central,1000)}
-  if(case==3){generate.pdf(mu=central,qs=0.025,as=lower,1000)}
-  if(case==4){generate.pdf(mu=central,qs=c(0.025,0.975),as=c(lower,upper),1000)}
+  if(case==3){generate.exactmu(mu=central,qs=0.025,as=lower,1000)}
+  if(case==4){generate.exactmu(mu=central,qs=c(0.025,0.975),as=c(lower,upper),1000)}
 }
+
+## errors <- data.frame()
+## for (ii in 1:nrow(fig1dat)) {
+##     vals <- distwrapper(fig1dat$central[ii], fig1dat$lower[ii], fig1dat$upper[ii])
+##     if (is.null(vals))
+##         errors <- rbind(errors, data.frame(central=NA, mu=NA, lower=NA, q025=NA,
+##                                            upper=NA, q975=NA))
+##     else
+##         errors <- rbind(errors, data.frame(central=fig1dat$central[ii], mu=mean(vals),
+##                                        lower=fig1dat$lower[ii], q025=quantile(vals, .025),
+##                                        upper=fig1dat$upper[ii], q975=quantile(vals, .975)))
+## }
+## errors$type <- fig1dat$type
 
 twodists=fig1dat%>%
   mutate(samp=pmap(list(central,lower,upper),function(central,lower,upper){
@@ -60,7 +75,7 @@ metadist=metadist[sample(1:nrow(metadist),0.2*nrow(metadist),replace=FALSE),]
 #add boxplots to graph
 a=ggplot(fig1dat,aes(x=xj,y=central,ymin=lower,ymax=upper,col=type))+geom_line(aes(group=id,x=xj,y=central),col="lightgrey")+geom_pointrange(lty=2)
 a=a+coord_cartesian(ylim=c(-100,1500))+theme_bw()+theme(text=element_text(size=14))+labs(x="",y="2020 SCC ($ per ton CO2)")+scale_color_manual(values=c("#af2436","#51a154"),guide=FALSE)
-a=a+scale_x_continuous(breaks=c(1,2), labels=c("Literature", "All Things Considered"), limits=c(0.5, 4.25)) 
+a=a+scale_x_continuous(breaks=c(1,2), labels=c("Literature", "All Things Considered"), limits=c(0.5, 4.25))
 a=a+geom_boxplot(data=twodists%>%filter(type=="Lit"&dist>quantile(dist,0.01)&dist<quantile(dist,0.99)),aes(y=dist,group=type,x=1),inherit.aes = FALSE,position=position_nudge(x=1.75),fill="#af2436",width=0.25)
 a=a+geom_boxplot(data=twodists%>%filter(type=="Tru"&dist>quantile(dist,0.01)&dist<quantile(dist,0.99)),aes(y=dist,group=type,x=2),inherit.aes = FALSE,position=position_nudge(x=1.25),fill="#51a154",width=0.25)
 a=a+geom_boxplot(data=metadist%>%filter(draw>quantile(draw,0.01)&draw<quantile(draw,0.99)),aes(y=draw,group=type,x=3),inherit.aes = FALSE,position=position_nudge(x=0.75),fill="slateblue3",width=0.25)
