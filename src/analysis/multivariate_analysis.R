@@ -16,12 +16,11 @@ source("src/analysis/damage_funcs_lib.R")
 
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
 
-
 struc=dat%>%
   select("Carbon Cycle":"Learning")%>%
   replace(is.na(.),0)
 
-for(i in 1:dim(struc)[2]) struc[,i]=fct_collapse(struc[,i],No=c("-1.0","0"),Yes=c("1.0","Calibrated"))
+for(i in 1:dim(struc)[2]) struc[,i]=fct_collapse(struc[,i],No=c("-1.0","0","-1"),Yes=c("1.0","Calibrated","1"))
 colnames(struc)=paste0(colnames(struc),"_struc")
 
 param=dat%>%
@@ -74,12 +73,12 @@ mod_paperfe=feols(fml=I(log(draw))~Earth_system_struc+Tipping.Points_struc+Tippi
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+sccyear_from2020+I(sccyear_from2020^2)+discountrate+I(discountrate^2)+declining+dicemodel+fundmodel+pagemodel+backstop+failure+log.scc.synth + missing.scc.synth|paper,cluster="row",data=distreg[which(distreg$draw>0),])
 
-library(lfe)
-mod_paperfe=felm(log(draw)~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
-            Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
-            Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
-            Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
-            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+sccyear_from2020+I(sccyear_from2020^2)+discountrate+I(discountrate^2)+declining+dicemodel+fundmodel+pagemodel+backstop+failure+log.scc.synth + missing.scc.synth|paper | 0 | row,data=distreg[which(distreg$draw>0),])
+#library(lfe)
+# mod_paperfe=felm(log(draw)~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+#             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
+#             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
+#             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
+#             Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+sccyear_from2020+I(sccyear_from2020^2)+discountrate+I(discountrate^2)+declining+dicemodel+fundmodel+pagemodel+backstop+failure+log.scc.synth + missing.scc.synth|paper | 0 | row,data=distreg[which(distreg$draw>0),])
 
 varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","I(I(discountrate^2))"="Discount Rate^2","declining"="Declining DR","Earth_system_strucYes"="Earth System", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality Aversion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price","failure"="Other Market Failure","log.scc.synth"="Damage-based SCC")
 
@@ -101,21 +100,19 @@ allcols[grep("Alternative ethical approaches", allcols)] <- "Alternative ethical
 df <- multivar.prep(df)
 
 #collapse Carbon Cycle and Climate Model into single Earth System category
-df$Earth_system=factor(ifelse(df$"Carbon Cycle"=="1.0",1,ifelse(df$"Climate Model"=="1.0",1.0,0)))
+df$Earth_system=factor(ifelse(df$"Carbon Cycle"==1,1,ifelse(df$"Climate Model"=="1",1,0)))
 
 allcols=append(allcols,"Earth_system")
 
 #collapse "Calibrated" into 1
 df=df%>%
-  mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,"0"=c("-1.0","0"),"1"=c("1.0","Calibrated"))))
+  mutate(across(c("Carbon Cycle":"Alternative ethical approaches","Earth_system"),~fct_collapse(.x,"0"=c("-1.0","0","-1"),"1"=c("1.0","Calibrated"))))
 
 form <- as.formula(paste0("log.scc ~ `", paste(allcols[!(allcols %in% c("IAM Calibrated To (if applicable)", basemodelcols))], collapse="` + `"), "` + modified |  basecode|0|basecode"))
 mod_basescc <- felm(form, data=df) #2167 observations deleted due to missingness?
 
 varnames_base=c("Earth_system1"="Earth System","`Tipping Points`1" ="Climate Tipping Points","`Tipping Points2`1"="Damages Tipping Points", "`Persistent / Growth Damages`1"="Growth Damages","`Epstein-Zin`1"="Epstein Zin","`Ambiguity/Model Uncertainty`1"="Ambiguity","`Limitedly-Substitutable Goods`1" ="Limited-Substitutability","`Inequality Aversion`1"="Inequality Aversion","Learning1"="Learning","`Backstop Price?`1.0"="Backstop","`Other Market Failure?`1.0"="Other Market Failure","modifiedTRUE"="Other Modification","`Alternative ethical approaches`1"="Other Ethical Approaches")
 modelsummary(models=list(mod_basescc),coef_rename = varnames_base,output="outputs\\sccolsanalysis_basescc.docx",stars=TRUE)
-
-
 
 #impossible to show properly in table to make a plot of coefficient values instead
 coefs=data.frame(coefs=c(mod_ols$coefficients,mod_paperfe$coefficients),sd=c(mod_ols$se,mod_paperfe$se),names=c(names(mod_ols$coefficients),names(mod_paperfe$coefficients)),mod=c(rep("No Fixed-Effects",length(mod_ols$coefficients)),rep("Paper Fixed-Effects",length(mod_paperfe$coefficients))))
