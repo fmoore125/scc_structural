@@ -27,30 +27,36 @@ fig1dat$xj=jitter(as.numeric(as.factor(fig1dat$type)),amount=0.25)
 #fit distributions to mean, 2.5th and 97.5th responses for all provided distributions
 distwrapper=function(central,lower,upper){
   #creates a wrapper to use pmap on the fig1dat dataframe to fit distribution and take 1000 samples
-  case=ifelse(is.na(lower),ifelse(is.na(upper),1,2),ifelse(is.na(upper),3,4))
+    case=ifelse(is.na(lower),ifelse(is.na(upper),1,2),ifelse(is.na(upper),3,4))
 
   if(case==2){generate.exactmu(mu=central,qs=0.975,as=upper,1000)}
-  if(case==1){rep(central,1000)}
-  if(case==3){generate.exactmu(mu=central,qs=0.025,as=lower,1000)}
-  if(case==4){generate.exactmu(mu=central,qs=c(0.025,0.975),as=c(lower,upper),1000)}
+  else if(case==1){rep(central,1000)}
+  else if(case==3){generate.exactmu(mu=central,qs=0.025,as=lower,1000)}
+  else if(case==4){generate.exactmu(mu=central,qs=c(0.025,0.975),as=c(lower,upper),1000)}
 }
 
 ## errors <- data.frame()
 ## for (ii in 1:nrow(fig1dat)) {
 ##     vals <- distwrapper(fig1dat$central[ii], fig1dat$lower[ii], fig1dat$upper[ii])
-##     if (is.null(vals))
-##         errors <- rbind(errors, data.frame(central=NA, mu=NA, lower=NA, q025=NA,
-##                                            upper=NA, q975=NA))
-##     else
-##         errors <- rbind(errors, data.frame(central=fig1dat$central[ii], mu=mean(vals),
+##     if (is.null(vals)) {
+##         if (is.na(fig1dat$lower[ii]) && is.na(fig1dat$upper[ii]))
+##             vals <- rep(fig1dat$central[ii], 1000)
+##         else
+##             vals <- rnorm(1000, fig1dat$central[ii], 0.5 * (fig1dat$upper[ii] - fig1dat$lower[ii]) / 1.96)
+##     }
+
+##     errors <- rbind(errors, data.frame(central=fig1dat$central[ii], mu=mean(vals),
 ##                                        lower=fig1dat$lower[ii], q025=quantile(vals, .025),
 ##                                        upper=fig1dat$upper[ii], q975=quantile(vals, .975)))
 ## }
 ## errors$type <- fig1dat$type
 
 twodists=fig1dat%>%
-  mutate(samp=pmap(list(central,lower,upper),function(central,lower,upper){
-    distwrapper(central,lower,upper)
+    mutate(samp=pmap(list(central,lower,upper),function(central,lower,upper){
+        vals <- distwrapper(central,lower,upper)
+        if (is.null(vals))
+            vals <- rnorm(1000, central, 0.5 * (upper - lower) / 1.96)
+        vals
     }))%>%
   group_by(type)%>%
   dplyr::summarise(dist=vec_c(samp))%>%
