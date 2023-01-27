@@ -1,5 +1,3 @@
-## setwd("~/research/scciams/scc_structural")
-
 library(tidyverse)
 library(forcats)
 library(rriskDistributions)
