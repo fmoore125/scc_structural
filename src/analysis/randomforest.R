@@ -24,94 +24,96 @@ source("src/analysis/damage_funcs_lib.R")
 #2. draw each structural change with equal probability -struc
 
 source("src/analysis/find_distribution.R")
-#if not equal-weighting by paper, then need to resample from original dataset
-#this code fits a distribution to each row in the dataset
-# set.seed(12345)
-# all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
-# all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
-# 
-# #start by generating distributions for each row
-# dists=list()
-# for (ii in 1:nrow(dat)) {
-#   print(ii)
-#   all.as <- t(dat[ii, all.as.cols])
-#   qs <- all.qs[!is.na(all.as)]
-#   as <- all.as[!is.na(all.as)]
-#   mu <- dat$`Central Value ($ per ton CO2)`[ii]
-#   if (is.na(mu) && length(qs) == 0) {
-#     next
-#   }
-#   #deal with odd case where quantiles are the same value
-#   if(ii==274) {qs=numeric(0);as=numeric(0)}
-# 
-#   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
-# }
-# dat=dat%>%
-#   mutate(dplyr::across("Carbon Cycle":"Learning",~replace_na(.x, "0")))%>%
-#   mutate(dplyr::across("Carbon Cycle":"Learning",~as.factor(.x)))%>%
-#   mutate(dplyr::across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0","-1"),Yes=c("1.0","Calibrated","1"))))
-# cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
-# colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
-# 
-# dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
-# #dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
-# 
-# samp=1e6 #down-sample full 10e6 distribution to fit random forests
-# 
-# struc=grep("_struc",colnames(dat))[-c(1:2)]
-# 
-# weights_struc=matrix(nrow=nrow(dat),ncol=length(struc))
-# for(i in 1:length(struc)){
-#   #equally-weight rows with and without structural change
-#   struc_yes=which(dat[,struc[i]]=="Yes");struc_no=which(dat[,struc[i]]=="No")
-#   
-#   #assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
-#   weights_struc[struc_yes,i]=1/length(struc_yes);weights_struc[struc_no,i]=1/length(struc_no)
-# }
-# #sum probability weights across rows and normalize to get probability weight for each row
-# weights=rowSums(weights_struc)/sum(rowSums(weights_struc))
-# 
-# distrf=matrix(nrow=samp,ncol=2)
-# struc_samp=sample(1:nrow(dat),size=samp,replace=TRUE,prob=weights)
-# for(i in 1:samp){
-#   if(i%%10000==0) print(i)
-#   
-#   distrf[i,1]=sample(dists[[struc_samp[i]]],1)
-#   distrf[i,2]=struc_samp[i]
-# }
-# colnames(distrf)=c("draw","row")
-# 
-# #bind in covariates
-# param=dat%>%
-#   select("TFP Growth":"Risk Aversion (EZ Utility)")%>%
-#   replace(is.na(.),0)
-# colnames(param)=paste0(colnames(param),"_param")
-# 
-# backstop=numeric(length=nrow(dat));backstop[which(dat$`Backstop Price?`=="1.0")]=1
-# failure=numeric(length=nrow(dat));failure[which(!is.na(dat$`Other Market Failure?`))]=1
-# sccyear_from2020=as.numeric(dat$`SCC Year`)-2020
-# marketonly=numeric(length=nrow(dat));marketonly[which(dat$`Market Only Damages`=="1.0")]=1
-# declining=numeric(length=nrow(dat));declining[which(dat$`Declining Discounting?` =="1.0")]=1
-# discountrate=round(dat$discountrate,2)
-# 
-# covars=cbind(dat[,struc],sccyear_from2020,param,backstop,declining,marketonly,failure, discountrate,log.scc.synth=dat$log.scc.synth, missing.scc.synth=dat$missing.scc.synth)
-# covars=covars%>%
-#   mutate(dplyr::across("TFP Growth_param":"failure",~as.factor(.x)))%>%
-#   mutate(dplyr::across("TFP Growth_param":"failure",~fct_recode(.x,No="0",Yes="1")))
-# distrf=cbind(distrf,covars[distrf[,2],])
-# 
-# distrf=distrf[-which(distrf$draw<quantile(distrf$draw,0.01)|distrf$draw>quantile(distrf$draw,0.99)),]
-# distrf=distrf[complete.cases(distrf),]
-# 
-# 
-# #fix column names
-# colnames(distrf) <- gsub(" ", ".", colnames(distrf))
-# colnames(distrf) <- gsub("/", ".", colnames(distrf))
-# colnames(distrf) <- gsub("-", ".", colnames(distrf))
-# colnames(distrf) <- gsub("\\(" ,".", colnames(distrf))
-# colnames(distrf) <- gsub(")", ".", colnames(distrf))
-# 
-# fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
+if (F) {
+    ##if not equal-weighting by paper, then need to resample from original dataset
+    ##this code fits a distribution to each row in the dataset
+    set.seed(12345)
+    all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
+    all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
+
+    ##start by generating distributions for each row
+    dists=list()
+    for (ii in 1:nrow(dat)) {
+        print(ii)
+        all.as <- t(dat[ii, all.as.cols])
+        qs <- all.qs[!is.na(all.as)]
+        as <- all.as[!is.na(all.as)]
+        mu <- dat$`Central Value ($ per ton CO2)`[ii]
+        if (is.na(mu) && length(qs) == 0) {
+            next
+        }
+        ##deal with odd case where quantiles are the same value
+        if(ii==274) {qs=numeric(0);as=numeric(0)}
+
+        dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
+    }
+    dat=dat%>%
+        mutate(dplyr::across("Carbon Cycle":"Learning",~replace_na(.x, "0")))%>%
+        mutate(dplyr::across("Carbon Cycle":"Learning",~as.factor(.x)))%>%
+        mutate(dplyr::across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0","-1"),Yes=c("1.0","Calibrated","1"))))
+    cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
+    colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
+
+    dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
+    ##dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
+
+    samp=1e6 #down-sample full 10e6 distribution to fit random forests
+
+    struc=grep("_struc",colnames(dat))[-c(1:2)]
+
+    weights_struc=matrix(nrow=nrow(dat),ncol=length(struc))
+    for(i in 1:length(struc)){
+        ##equally-weight rows with and without structural change
+        struc_yes=which(dat[,struc[i]]=="Yes");struc_no=which(dat[,struc[i]]=="No")
+
+        ##assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
+        weights_struc[struc_yes,i]=1/length(struc_yes);weights_struc[struc_no,i]=1/length(struc_no)
+    }
+    ##sum probability weights across rows and normalize to get probability weight for each row
+    weights=rowSums(weights_struc)/sum(rowSums(weights_struc))
+
+    distrf=matrix(nrow=samp,ncol=2)
+    struc_samp=sample(1:nrow(dat),size=samp,replace=TRUE,prob=weights)
+    for(i in 1:samp){
+        if(i%%10000==0) print(i)
+
+        distrf[i,1]=sample(dists[[struc_samp[i]]],1)
+        distrf[i,2]=struc_samp[i]
+    }
+    colnames(distrf)=c("draw","row")
+
+    ##bind in covariates
+    param=dat%>%
+        select("TFP Growth":"Risk Aversion (EZ Utility)")%>%
+        replace(is.na(.),0)
+    colnames(param)=paste0(colnames(param),"_param")
+
+    backstop=numeric(length=nrow(dat));backstop[which(dat$`Backstop Price?`=="1.0")]=1
+    failure=numeric(length=nrow(dat));failure[which(!is.na(dat$`Other Market Failure?`))]=1
+    sccyear_from2020=as.numeric(dat$`SCC Year`)-2020
+    marketonly=numeric(length=nrow(dat));marketonly[which(dat$`Market Only Damages`=="1.0")]=1
+    declining=numeric(length=nrow(dat));declining[which(dat$`Declining Discounting?` =="1.0")]=1
+    discountrate=round(dat$discountrate,2)
+
+    covars=cbind(dat[,struc],sccyear_from2020,param,backstop,declining,marketonly,failure, discountrate,log.scc.synth=dat$log.scc.synth, missing.scc.synth=dat$missing.scc.synth)
+    covars=covars%>%
+        mutate(dplyr::across("TFP Growth_param":"failure",~as.factor(.x)))%>%
+        mutate(dplyr::across("TFP Growth_param":"failure",~fct_recode(.x,No="0",Yes="1")))
+    distrf=cbind(distrf,covars[distrf[,2],])
+
+    distrf=distrf[-which(distrf$draw<quantile(distrf$draw,0.01)|distrf$draw>quantile(distrf$draw,0.99)),]
+    distrf=distrf[complete.cases(distrf),]
+
+
+    ##fix column names
+    colnames(distrf) <- gsub(" ", ".", colnames(distrf))
+    colnames(distrf) <- gsub("/", ".", colnames(distrf))
+    colnames(distrf) <- gsub("-", ".", colnames(distrf))
+    colnames(distrf) <- gsub("\\(" ,".", colnames(distrf))
+    colnames(distrf) <- gsub(")", ".", colnames(distrf))
+
+    fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
+}
 
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 
@@ -200,9 +202,9 @@ predictionyears=matrix(nrow=samppred,ncol=length(years))
 
 for(i in 1:length(years)){
   sampdat$sccyear_from2020=years[i]-2020
-  
+
   predictions=predict(rfmod,sampdat)
-  
+
   #add in residuals from random forest to get full distribution
   fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
   predictionyears[,i]=fulldist
@@ -215,11 +217,11 @@ rf_table=rbind(exp(quants),means)
 colnames(rf_table)=years
 rownames(rf_table)=c(rownames(rf_table)[1:9],"Mean")
 
-tab<-xtable(round(rf_table[,c(1,4,9)]), 
+tab<-xtable(round(rf_table[,c(1,4,9)]),
             align=c("|c","|c","|c","|c","|c|"))
 
 colnames(predictionyears)=years
-  
+
 temp=as.tibble(predictionyears)%>%
   pivot_longer(everything(),names_to="year",values_to="scc")%>%
   filter(year%in%c(2020,2050,2100))%>%
@@ -227,7 +229,13 @@ temp=as.tibble(predictionyears)%>%
   filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc)%>%
   group_modify(~ ggplot2:::compute_density(.x$scc, NULL,bw=0.1))
 
-breaks_ln=c(0,2.5,5,7.5)
-a=ggplot(temp,aes(x=x,y=as.factor(year),group=year,height=density))+theme_ridges()+geom_density_ridges(stat="identity",lwd=0.75,fill="#f5dc62",scale=0.92)
-a=a+labs(x="SCC ($ per ton CO2)",y="")+scale_x_continuous(limits=c(0,8),breaks=breaks_ln,labels=c(round_any(exp(breaks_ln[1:3]),10),round_any(exp(breaks_ln[4]),100)))
+breaks_lin <- c(2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000)
+a=ggplot(temp,aes(x=x,y=as.numeric(as.factor(year)),group=year,height=density))+theme_ridges()+geom_density_ridges(stat="identity",lwd=0.75,fill="#f5dc62",scale=0.92, alpha=.8)
+a=a+labs(x="SCC ($ per ton CO2)",y="")+scale_x_continuous(limits=c(0,8),breaks=log(breaks_lin),labels=breaks_lin) + scale_y_continuous(NULL, limits=c(1, 4), breaks=1:3, labels=c(2020, 2050, 2100))
 a
+
+mus <- as.tibble(predictionyears) %>%
+    pivot_longer(everything(),names_to="year",values_to="scc")%>%
+    filter(year%in%c(2020,2050,2100))%>%
+    group_by(year) %>% filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc) %>%
+    summarize(mu=mean(exp(scc)), med=median(exp(scc)), q25=quantile(exp(scc), .25), q75=quantile(exp(scc), .75))
