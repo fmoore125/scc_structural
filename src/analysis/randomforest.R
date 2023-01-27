@@ -215,7 +215,7 @@ rf_table=rbind(exp(quants),means)
 colnames(rf_table)=years
 rownames(rf_table)=c(rownames(rf_table)[1:9],"Mean")
 
-tab<-xtable(s, caption= "summary statistics of air pollution data", 
+tab<-xtable(round(rf_table[,c(1,4,9)]), 
             align=c("|c","|c","|c","|c","|c|"))
 
 colnames(predictionyears)=years
