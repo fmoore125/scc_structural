@@ -656,3 +656,87 @@ if (F) {
     validate.pdf(50, c(.025, .975), c(0, 100), generate.skewnormal.pdf)
     validate.pdf(90, c(.025, .975), c(0, 100), generate.skewnormal.pdf)
 }
+
+generate.exactmu <- function(mu, qs, as, N) {
+    if (length(qs) > 2 || is.na(mu))
+        return(NULL)
+    if (length(qs) == 1) {
+        ## Assume triangular distribution
+        ## results from Maple. Choose whichever produces a valid answer
+        if (qs > .5) {
+            top1 <- (2 * mu * qs + sqrt(-2 * as^2 * qs + 4 * as * mu * qs - 2 * mu^2 * qs + 2 * as - 4 * mu * as + 2 * mu^2) + as - 2 * mu) / (2 * qs - 1)
+            top2 <- (2 * mu * qs - sqrt(-2 * as^2 * qs + 4 * as * mu * qs - 2 * mu^2 * qs + 2 * as - 4 * mu * as + 2 * mu^2) + as - 2 * mu) / (2 * qs - 1)
+            if (top1 > mu)
+                return(rtri(N, mu - (top1 - mu), top1, mu))
+            else if (top2 > mu)
+                return(rtri(N, mu - (top2 - mu), top2, mu))
+            else
+                return(NULL)
+        } else {
+            bot1 <- (2 * mu * qs + sqrt(2 * as^2 * qs - 4 * as * mu * qs + 2 * mu^2 * qs) - as) / (2 * qs - 1)
+            bot1 <- (2 * mu * qs - sqrt(2 * as^2 * qs - 4 * as * mu * qs + 2 * mu^2 * qs) - as) / (2 * qs - 1)
+            if (bot1 < mu)
+                return(rtri(N, bot1, mu + (mu - bot1), mu))
+            else if (bot2 < mu)
+                return(rtri(N, bot2, mu + (mu - bot2), mu))
+            else
+                return(NULL)
+        }
+    }
+
+    as2 <- as[order(qs)]
+    qs2 <- sort(qs)
+
+    if (is.bounded(qs2)) {
+        if (qs2[1] != 0)
+            qs2[1] <- 0
+        if (qs2[length(qs2)] != 1)
+            qs2[length(qs2)] <- 1
+    }
+
+    ## Adjust mean to accommodate tails
+    ## pleft * meanleft + pright * meanright + prest * meanrest = mu
+    newmu <- (mu - qs2[1] * as2[1] - (1 - qs2[2]) * as2[2]) / (1 - qs2[1] - (1 - qs2[2]))
+    if (newmu < as2[1] || newmu > as2[2])
+        return(NULL) # Infeasible with symmetric tails
+
+    ## Optimize to find best spot for break between two blocks
+    lower <- max(as2[1], 2 * newmu - as2[2])
+    upper <- min(as2[2], 2 * newmu - as2[1])
+
+    ## result <- optim((lower + upper)/2, function(xx) {
+    ##     p1 <- (2 * newmu - xx - as2[2]) / (as2[1] - as2[2])
+    ##     height1 <- p1 / (xx - as2[1])
+    ##     height2 <- (1 - p1) / (as2[2] - xx)
+    ##     abs(height1 - height2)
+    ## }, method="L-BFGS-B", lower=lower, upper=upper)
+    ## midpt <- result$par
+
+    midpt <- (lower + upper)/2 # just use this, to ensure full sampling
+
+    ## Generate as though these will be our left and right tail, than randomly shuffle
+    left.fit <- fit.left.tail(mu, qs, as)
+    right.fit <- fit.right.tail(mu, qs, as)
+    left.tail.draws <- generate.left.tail.pdf(left.fit, N * qs2[1] + 1, as2[1])
+    right.tail.draws <- generate.right.tail.pdf(right.fit, N * (1 - qs2[2]) + 1, as2[2])
+    alltails <- c(as2[1] - left.tail.draws, right.tail.draws - as2[2])
+
+    quants <- runif(N)
+    values <- rep(NA, N)
+    below <- quants < qs2[1]
+
+    qs3 <- c(qs2[1], (qs2[2] - qs2[1]) * (2 * newmu - midpt - as2[2]) / (as2[1] - as2[2]) + qs2[1], qs2[2])
+    as3 <- c(as2[1], midpt, as2[2])
+    for (ii in 2:3) {
+        within <- quants >= qs3[ii-1] & quants < qs3[ii]
+        values[within] <- runif(sum(within), as3[ii-1], as3[ii])
+    }
+    above <- quants >= qs2[2]
+
+    ## Shuffle left and right values evenly
+    values[below] <- as2[1] - sample(alltails, sum(below), replace=T)
+    values[above] <- as2[2] + sample(alltails, sum(above), replace=T)
+
+    values
+}
+
