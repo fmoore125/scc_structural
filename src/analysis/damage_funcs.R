@@ -10,6 +10,14 @@ ggplot(subset(dat, !is.na(temp.2100.source)), aes(temp.2100, `Central Value ($ p
 
 source("src/analysis/damage_funcs_lib.R")
 
+## Materials for Synthetic SCC section
+
+mean(!is.na(dat$scc.synth))
+table(dat$scc.source)
+for (scc.source in unique(dat$scc.source)) {
+    print(c(scc.source, sum(dat$scc.source == scc.source, na.rm=T), length(unique(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`[!is.na(dat$scc.source) & dat$scc.source == scc.source]))))
+}
+
 library(ggplot2)
 
 ggplot(plotdfs, aes(T, dmg, group=dmgfunc, colour=scc.source)) +
