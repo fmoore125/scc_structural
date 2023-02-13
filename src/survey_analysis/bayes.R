@@ -88,6 +88,8 @@ df$prob <- inv.logit(colMeans(la$theta))
 df$naive <- (df$level - .5) / 5
 df2 <- df %>% group_by(question) %>% summarize(naive1=mean(naive), naive2=inv.logit(mean(logit(naive))))
 
+## pdf <- read.csv("outputs/meta-analysis-distribution.csv")
+
 ggplot(pdf, aes(prob)) +
     facet_wrap(~ question) +
     geom_vline(data=df, aes(xintercept=prob, colour=answer), alpha=.5) +
@@ -98,3 +100,11 @@ ggplot(pdf, aes(prob)) +
 ggsave("figures/meta-analysis.pdf", width=9, height=4)
 
 write.csv(pdf, "outputs/meta-analysis-distribution.csv", row.names=F)
+
+library(xtable)
+pp <- summary(fit)
+xtable(pp$summary)
+
+## Look at covariance
+
+wpdf <- dcast(pdf, iterations ~ question)
