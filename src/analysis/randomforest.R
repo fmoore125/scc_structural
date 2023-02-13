@@ -48,12 +48,12 @@ if (F) {
 
         dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
     }
-    dat=dat%>%
-        mutate(dplyr::across("Carbon Cycle":"Learning",~replace_na(.x, "0")))%>%
-        mutate(dplyr::across("Carbon Cycle":"Learning",~as.factor(.x)))%>%
-        mutate(dplyr::across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0","-1"),Yes=c("1.0","Calibrated","1"))))
     cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
     colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
+    dat=dat%>%
+        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~tidyr::replace_na(.x, "0")))%>%
+        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~as.factor(.x)))%>%
+        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~fct_collapse(.x,No=c("-1.0","0","-1",NA),Yes=c("1.0","Calibrated","1"))))
 
     dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
     ##dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
@@ -214,17 +214,18 @@ if (F) {
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 # 
 distrf=as.data.frame(distrf)
-# 
-# #limit to pre-2100 - vast majority of observations
-# distrf=distrf%>%filter(sccyear_from2020<=80)
-# #remove 2.6% of distribution with values <=0 that can't be logged
-# #distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
-# 
-# rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected")
-# 
-# rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
-# rfmod_diag=model_diagnostics(rfmod_explained)
+
+#limit to pre-2100 - vast majority of observations
+distrf=distrf%>%filter(sccyear_from2020<=80)
+#remove 2.6% of distribution with values <=0 that can't be logged
+#distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
+
+rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
+
+rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
+rfmod_diag=model_diagnostics(rfmod_explained)
 save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
+load(file="outputs/randomforestmodel.Rdat")
 
 rfmod_mod=model_parts(rfmod_explained);
 rfmod_mod$variable=fct_recode(rfmod_mod$variable,"SCC Year"="sccyear_from2020","Discount Rate"="discountrate","Log Damage-based SCC"="log.scc.synth","Declining DR"="declining","Earth System"="Earth_system_struc","Climate Tipping Points"="Tipping.Points_struc","Damages Tipping Points"="Tipping.Points2_struc","Growth Damages"="Persistent...Growth.Damages_struc","Epstein Zin"="Epstein.Zin_struc","Ambiguity"="Ambiguity.Model.Uncertainty_struc","Limited-Substitutability"="Limitedly.Substitutable.Goods_struc","Inequality Aversion"="Inequality.Aversion_struc","Learning"="Learning_struc","TFP Growth"="TFP.Growth_param","Pop Growth"="Population.Growth_param","Emissions Growth"="Emissions.Growth_param","Trans. Climate Resp"="Transient.Climate.Response_param","Carbon Cycle (param)"="Carbon.Cycle2_param","Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_param","Tipping Point Size"="Tipping.Point.Magnitude_param","Damage Function"="Damage.Function_param","Adaptation Rates"="Adaptation.Rates_param","Income Elasticity"="Income.Elasticity_param","Const. Disc. Rate"="Constant.Discount.Rate_param","EMUC"="EMUC2_param","PRTP"="PRTP2_param","Risk Aversion"="Risk.Aversion..EZ.Utility._param","Backstop Price"="backstop","Other Market Failure"="failure","Market Only Damages"="marketonly","Missing Damage SCC"="missing.scc.synth","Pub Year"="PublicationYear")
@@ -329,6 +330,10 @@ rownames(rf_table)=c(rownames(rf_table)[1:9],"Mean")
 tab<-xtable(round(rf_table), digits=c(NA,0,0,0),
             align=c("|c","|c","|c","|c"))
 
+#make a figure of 2020 SCC values
+a=ggplot(data.frame(x=exp(predictionyears[,1])),aes(x))+geom_density(fill="#df752d",color="#df752d")
+a=a+theme_bw()
+a
 colnames(predictionyears)=years
 
 temp=as.tibble(predictionyears)%>%
@@ -338,13 +343,3 @@ temp=as.tibble(predictionyears)%>%
   filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc)%>%
   group_modify(~ ggplot2:::compute_density(.x$scc, NULL,bw=0.1))
 
-breaks_lin <- c(2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000)
-a=ggplot(temp,aes(x=x,y=as.numeric(as.factor(year)),group=year,height=density))+theme_ridges()+geom_density_ridges(stat="identity",lwd=0.75,fill="#f5dc62",scale=0.92, alpha=.8)
-a=a+labs(x="SCC ($ per ton CO2)",y="")+scale_x_continuous(limits=c(0,8),breaks=log(breaks_lin),labels=breaks_lin) + scale_y_continuous(NULL, limits=c(1, 4), breaks=1:3, labels=c(2020, 2050, 2100))
-a
-
-mus <- as.tibble(predictionyears) %>%
-    pivot_longer(everything(),names_to="year",values_to="scc")%>%
-    filter(year%in%c(2020,2050,2100))%>%
-    group_by(year) %>% filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc) %>%
-    summarize(mu=mean(exp(scc)), med=median(exp(scc)), q25=quantile(exp(scc), .25), q75=quantile(exp(scc), .75))
