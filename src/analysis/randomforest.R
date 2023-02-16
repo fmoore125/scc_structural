@@ -51,9 +51,9 @@ if (F) {
     cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
     colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
     dat=dat%>%
-        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~tidyr::replace_na(.x, "0")))%>%
-        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~as.factor(.x)))%>%
-        mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~fct_collapse(.x,No=c("-1.0","0","-1",NA),Yes=c("1.0","Calibrated","1"))))
+      dplyr::mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~tidyr::replace_na(.x, "0")))%>%
+      dplyr::mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~as.factor(.x)))%>%
+      dplyr::mutate(dplyr::across("Carbon Cycle_struc":"Learning_struc",~fct_collapse(.x,No=c("-1.0","0","-1",NA),Yes=c("1.0","Calibrated","1"))))
 
     dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
     ##dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
@@ -105,7 +105,6 @@ if (F) {
     distrf=distrf[-which(distrf$draw<quantile(distrf$draw,0.01)|distrf$draw>quantile(distrf$draw,0.99)),]
     distrf=distrf[complete.cases(distrf),]
 
-
     ##fix column names
     colnames(distrf) <- gsub(" ", ".", colnames(distrf))
     colnames(distrf) <- gsub("/", ".", colnames(distrf))
@@ -113,6 +112,10 @@ if (F) {
     colnames(distrf) <- gsub("\\(" ,".", colnames(distrf))
     colnames(distrf) <- gsub(")", ".", colnames(distrf))
 
+    # bind in publication year
+    distrf=cbind(distrf,dat$Year[distrf[,2]])
+    colnames(distrf)[length(colnames(distrf))]="PublicationYear"
+    
     fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 }
 
@@ -213,17 +216,17 @@ if (F) {
 
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 # 
-distrf=as.data.frame(distrf)
+#distrf=as.data.frame(distrf)
 
 #limit to pre-2100 - vast majority of observations
-distrf=distrf%>%filter(sccyear_from2020<=80)
+#distrf=distrf%>%filter(sccyear_from2020<=80)
 #remove 2.6% of distribution with values <=0 that can't be logged
 #distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
-rfmod=ranger(y~.,data=distrf%>%select(-c(draw,row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
-
-rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row,y)),y=distrf$y)
-rfmod_diag=model_diagnostics(rfmod_explained)
+# rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
+# 
+# rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
+#rfmod_diag=model_diagnostics(rfmod_explained)
 save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
 load(file="outputs/randomforestmodel.Rdat")
 
@@ -236,7 +239,7 @@ moddat=rfmod_mod%>%
   filter(variable!="_baseline_"&variable!="_full_model_")%>%
   arrange(desc(mean))
 moddat$variable=fct_reorder(moddat$variable,moddat$mean)
-moddat$type=c("Other","Other","Other","Damage Func","Struc","Struc","Damage Func","Damage Func","Struc","Param","Struc","Param","Struc","Struc","Struc","Param","Struc","Param","Param","Param","Param","Struc","Param","Param","Param","Param","Other","Param","Other","Other","Other","Other")
+moddat$type=c("Other","Other","Damage Func","Struc","Struc","Damage Func","Other","Param","Damage Func","Struc","Struc","Struc","Struc","Struc","Param","Param","Param","Struc","Struc","Param","Param","Param","Param","Other","Param","Param","Param","Param","Other","Other","Other","Other")
 moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
 
 a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
@@ -321,9 +324,9 @@ for(i in 1:length(years)){
   print(years[i])
 }
 
-means=colMeans(exp(predictionyears))
+means=colMeans(predictionyears)
 quants=apply(predictionyears,MARGIN=2,FUN=function(x) quantile(x,c(0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975)))
-rf_table=rbind(exp(quants),means)
+rf_table=rbind(quants,means)
 colnames(rf_table)=years
 rownames(rf_table)=c(rownames(rf_table)[1:9],"Mean")
 
@@ -331,7 +334,7 @@ tab<-xtable(round(rf_table), digits=c(NA,0,0,0),
             align=c("|c","|c","|c","|c"))
 
 #make a figure of 2020 SCC values
-a=ggplot(data.frame(x=exp(predictionyears[,1])),aes(x))+geom_density(fill="#df752d",color="#df752d")
+a=ggplot(data.frame(x=predictionyears[,1]),aes(x))+geom_density(fill="#df752d",color="#df752d")
 a=a+theme_bw()
 a
 colnames(predictionyears)=years
