@@ -16,6 +16,10 @@ dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/damage_funcs_lib.R")
 
+#drop outlier Nordhaus row
+todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
+if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
+
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
 
 
@@ -227,7 +231,7 @@ distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.c
 # 
 # rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
 #rfmod_diag=model_diagnostics(rfmod_explained)
-save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
+#save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
 load(file="outputs/randomforestmodel.Rdat")
 
 rfmod_mod=model_parts(rfmod_explained);
@@ -239,7 +243,7 @@ moddat=rfmod_mod%>%
   filter(variable!="_baseline_"&variable!="_full_model_")%>%
   arrange(desc(mean))
 moddat$variable=fct_reorder(moddat$variable,moddat$mean)
-moddat$type=c("Other","Other","Damage Func","Struc","Struc","Damage Func","Other","Param","Damage Func","Struc","Struc","Struc","Struc","Struc","Param","Param","Param","Struc","Struc","Param","Param","Param","Param","Other","Param","Param","Param","Param","Other","Other","Other","Other")
+moddat$type=c("Other","Other","Damage Func","Damage Func","Other","Struc","Struc","Param","Damage Func","Struc","Struc","Struc","Param","Struc","Param","Struc","Param","Struc","Param","Param","Param","Struc","Param","Other","Param","Param","Param","Param","Other","Other","Other","Other")
 moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
 
 a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
@@ -311,18 +315,21 @@ for(i in 1:nrow(struclookup)){
 #loop through a set of years to get scc distribution over time
 years=c(2020,2050,2100)
 
-predictionyears=matrix(nrow=samppred,ncol=length(years))
+# predictionyears=matrix(nrow=samppred,ncol=length(years))
+# 
+# for(i in 1:length(years)){
+#   sampdat$sccyear_from2020=years[i]-2020
+# 
+#   predictions=predict(rfmod,sampdat)
+# 
+#   #add in residuals from random forest to get full distribution
+#   fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+#   predictionyears[,i]=fulldist
+#   print(years[i])
+# }
+#save(years,predictionyears,file="outputs/randomforest_predictions.rdat")
+load(file="outputs/randomforest_predictions.rdat")
 
-for(i in 1:length(years)){
-  sampdat$sccyear_from2020=years[i]-2020
-
-  predictions=predict(rfmod,sampdat)
-
-  #add in residuals from random forest to get full distribution
-  fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
-  predictionyears[,i]=fulldist
-  print(years[i])
-}
 
 means=colMeans(predictionyears)
 quants=apply(predictionyears,MARGIN=2,FUN=function(x) quantile(x,c(0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975)))
@@ -334,15 +341,30 @@ tab<-xtable(round(rf_table), digits=c(NA,0,0,0),
             align=c("|c","|c","|c","|c"))
 
 #make a figure of 2020 SCC values
-a=ggplot(data.frame(x=predictionyears[,1]),aes(x))+geom_density(fill="#df752d",color="#df752d")
-a=a+theme_bw()
-a
+#trim upper and lower 0.5% of values
 colnames(predictionyears)=years
+vals=predictionyears[,1]
+vals=vals[-which(vals<quantile(vals,0.005)|vals>quantile(vals,0.995))]
 
-temp=as.tibble(predictionyears)%>%
-  pivot_longer(everything(),names_to="year",values_to="scc")%>%
-  filter(year%in%c(2020,2050,2100))%>%
-  group_by(year)%>%
-  filter(quantile(scc,0.01)<scc&quantile(scc,0.99)>scc)%>%
-  group_modify(~ ggplot2:::compute_density(.x$scc, NULL,bw=0.1))
+#add in box plot for survey responses
+#GET NEW VERSION OF SURVEY DISTRIBUTION FROM JAMES
+surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
+
+a=ggplot(data.frame(x=vals),aes(x=x))+geom_density(color="purple2",orientation="x",lwd=0.5)
+a=a+geom_density(data=surveydat%>%filter(type=="Tru"),aes(x=dist),color="steelblue1",inherit.aes=FALSE,lwd=0.5,orientation="x")
+a=a+geom_hline(yintercept = 0)
+a=a+theme_bw()+theme(axis.ticks.y=element_blank())+labs(x="2020 SCC (2020 US Dollars)",y="")+scale_y_continuous(labels=NULL)+scale_x_continuous(limits=c(-300,1800),expand=c(0, 0))
+a
+
+#add quantiles to figure
+quants=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)
+dist_quants=data.frame(quants=quants,lit=quantile(predictionyears[,1],quants),survey=quantile(surveydat$dist[which(surveydat$type=="Tru")],quants))
+dist_quants$lit=round(dist_quants$lit);dist_quants$survey=round(dist_quants$survey)
+
+
+# a=a+geom_boxplot(data=surveydat_summary,aes(x=-0.001,min=min,lower=lower,middle=middle,upper=upper,max=max),inherit.aes=FALSE,stat="identity",width=0.0015)
+# a=a+geom_segment(data=surveydat_summary,aes(x=-0.001,xend=-0.001,y=lowest,yend=min),lty=2)+geom_segment(data=surveydat_summary,aes(x=-0.001,xend=-0.001,y=max,yend=1800),lty=2)
+# a=a+geom_point(data=surveydat_summary, aes(x=-0.001, y=mu))
+# a=a+theme_bw()+theme(axis.ticks.y=element_blank())+labs(y="2020 SCC (2020 US Dollars)",x="")+scale_x_continuous(labels=NULL)+scale_y_continuous(limits=c(-300,1800),expand=c(0, 0))
+# a
 
