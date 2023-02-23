@@ -220,18 +220,18 @@ if (F) {
 
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 # 
-#distrf=as.data.frame(distrf)
+distrf=as.data.frame(distrf)
 
 #limit to pre-2100 - vast majority of observations
-#distrf=distrf%>%filter(sccyear_from2020<=80)
+distrf=distrf%>%filter(sccyear_from2020<=80)
 #remove 2.6% of distribution with values <=0 that can't be logged
 #distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
 # rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
-# 
+# # 
 # rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
-#rfmod_diag=model_diagnostics(rfmod_explained)
-#save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
+# rfmod_diag=model_diagnostics(rfmod_explained)
+# save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
 load(file="outputs/randomforestmodel.Rdat")
 
 rfmod_mod=model_parts(rfmod_explained);
@@ -243,7 +243,7 @@ moddat=rfmod_mod%>%
   filter(variable!="_baseline_"&variable!="_full_model_")%>%
   arrange(desc(mean))
 moddat$variable=fct_reorder(moddat$variable,moddat$mean)
-moddat$type=c("Other","Other","Damage Func","Damage Func","Other","Struc","Struc","Param","Damage Func","Struc","Struc","Struc","Param","Struc","Param","Struc","Param","Struc","Param","Param","Param","Struc","Param","Other","Param","Param","Param","Param","Other","Other","Other","Other")
+moddat$type=c("Other","Other","Struc","Struc","Damage Func","Other","Damage Func","Param","Damage Func","Struc","Struc","Struc","Param","Struc","Param","Param","Struc","Struc","Param","Struc","Param","Param","Param","Param","Param","Other","Param","Param","Other","Other","Other","Other")
 moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
 
 a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
@@ -315,18 +315,18 @@ for(i in 1:nrow(struclookup)){
 #loop through a set of years to get scc distribution over time
 years=c(2020,2050,2100)
 
-# predictionyears=matrix(nrow=samppred,ncol=length(years))
-# 
-# for(i in 1:length(years)){
-#   sampdat$sccyear_from2020=years[i]-2020
-# 
-#   predictions=predict(rfmod,sampdat)
-# 
-#   #add in residuals from random forest to get full distribution
-#   fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
-#   predictionyears[,i]=fulldist
-#   print(years[i])
-# }
+predictionyears=matrix(nrow=samppred,ncol=length(years))
+
+for(i in 1:length(years)){
+  sampdat$sccyear_from2020=years[i]-2020
+
+  predictions=predict(rfmod,sampdat)
+
+  #add in residuals from random forest to get full distribution
+  fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+  predictionyears[,i]=fulldist
+  print(years[i])
+}
 #save(years,predictionyears,file="outputs/randomforest_predictions.rdat")
 load(file="outputs/randomforest_predictions.rdat")
 
