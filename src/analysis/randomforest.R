@@ -349,7 +349,7 @@ vals=vals[-which(vals<quantile(vals,0.005)|vals>quantile(vals,0.995))]
 #add in box plot for survey responses
 surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
 #add quantiles to figure
-quants=c(0.01,0.05,0.25,0.5,0.75,0.95,0.99)
+quants=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
 dist_quants=data.frame(quants=quants,lit=quantile(predictionyears[,1],quants),survey=quantile(surveydat$dist[which(surveydat$type=="Tru")],quants))
 dist_quants$lit=round(dist_quants$lit);dist_quants$survey=round(dist_quants$survey)
 dist_quants=pivot_longer(dist_quants,cols=c(lit,survey))
@@ -357,18 +357,22 @@ yvals=data.frame(name=c("lit","survey"),y=c(-0.001,-0.002))
 dist_quants=merge(dist_quants,yvals)
 dist_quants=pivot_wider(dist_quants,id_cols=c(name,y),names_from=quants,values_from = value)
 colnames(dist_quants)=c("name","y","lowest","min","lower","mid","upper","max","highest")
-#replace values outside bounds with min/max
-dist_quants$lowest=-150;dist_quants$highest[2]=1600
-
 
 a=ggplot(data.frame(x=vals),aes(y=x))+geom_density(color="purple2",lwd=0.75)
 #a=a+geom_density(data=surveydat%>%filter(type=="Tru"),aes(y=dist),color="steelblue1",inherit.aes=FALSE,lwd=0.5)
 a=a+geom_vline(xintercept = 0)
-a=a+theme_bw()+theme(axis.ticks.y=element_blank(),text=element_text(size=18))+labs(x="2020 SCC (2020 US Dollars)",y="",color="")+scale_x_continuous(labels=NULL)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1600, by=100)), limits=c(-150,1600), expand=c(0, 0))
+a=a+theme_bw()+theme(axis.ticks.y=element_blank(),text=element_text(size=18))+labs(y="2020 SCC (2020 US Dollars)",x="",color="")+scale_x_continuous(labels=NULL)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1600, by=100)), limits=c(-150,1600), expand=c(0, 0))
 a=a+geom_boxplot(data=dist_quants,aes(color=name,x=y,min=min,lower=lower,middle=mid,upper=upper,max=max),inherit.aes=FALSE,stat="identity",width=0.00075)+coord_flip()
 a=a+geom_segment(data=dist_quants,aes(color=name,x=y,xend=y,y=lowest,yend=min),inherit.aes=FALSE,lty=2)+geom_segment(data=dist_quants,aes(color=name,x=y,xend=y,y=max,yend=highest),inherit.aes=FALSE,lty=2)
-a=a+scale_color_manual(values=c("purple2","steelblue"),labels=c("Random Forest","Survey"))
+a=a+scale_color_manual(values=c("purple2","steelblue"),labels=c("Random Forest","Survey"),guide=NULL)
+ann_text=data.frame(text=c("Survey + Random Forest Predictions","Expert Survey: Comprehensive 2020 Estimate"),y=c(600,600),x=c(-0.0008,-0.0018))
+a=a+geom_text(data=ann_text,aes(y=y,x=x,label=text),inherit.aes=FALSE)
+#add mean as dots to boxplot
+means=data.frame(meanvals=c(mean(predictionyears[,1]),mean(surveydat$dist[which(surveydat$type=="Tru")])),y=c(-0.001,-0.002))
+a=a+geom_point(data=means,aes(y=meanvals,x=y))
 a
+ggsave("figures/figure4.pdf", width=13, height=6)
+
 # a=a+geom_boxplot(data=surveydat_summary,aes(x=-0.001,min=min,lower=lower,middle=middle,upper=upper,max=max),inherit.aes=FALSE,stat="identity",width=0.0015)
 # a=a+geom_segment(data=surveydat_summary,aes(x=-0.001,xend=-0.001,y=lowest,yend=min),lty=2)+geom_segment(data=surveydat_summary,aes(x=-0.001,xend=-0.001,y=max,yend=1800),lty=2)
 # a=a+geom_point(data=surveydat_summary, aes(x=-0.001, y=mu))
