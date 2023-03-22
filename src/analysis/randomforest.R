@@ -119,7 +119,7 @@ if (F) {
     # bind in publication year
     distrf=cbind(distrf,dat$Year[distrf[,2]])
     colnames(distrf)[length(colnames(distrf))]="PublicationYear"
-    
+
     fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 }
 
@@ -129,7 +129,7 @@ if (F) {
 # set.seed(12345)
 # all.qs <- c(0,0.001,0.01, .025, .05, .1, .17, .25, .5, .75, .83, .9, .95, .975, .99,0.999, 1)
 # all.as.cols <- which(names(dat) == 'Min'):which(names(dat) == 'Max')
-# 
+#
 # #start by generating distributions for each row
 # dists=list()
 # for (ii in 1:nrow(dat)) {
@@ -143,7 +143,7 @@ if (F) {
 #   }
 #   #deal with odd case where quantiles are the same value
 #   if(ii==274) {qs=numeric(0);as=numeric(0)}
-# 
+#
 #   dists[[ii]] <- generate.pdf(mu, qs, as, 1e6)
 # }
 # dat=dat%>%
@@ -152,74 +152,74 @@ if (F) {
 #   mutate(dplyr::across("Carbon Cycle":"Learning",~fct_collapse(.x,No=c("-1.0","0","-1"),Yes=c("1.0","Calibrated","1"))))
 # cols=c(which(colnames(dat)=="Carbon Cycle"):which(colnames(dat)=="Learning"))
 # colnames(dat)[cols]=paste0(colnames(dat)[cols],"_struc")
-# 
+#
 # dat$Earth_system_struc=factor(ifelse(dat$"Carbon Cycle_struc"=="Yes","Yes",ifelse(dat$"Climate Model_struc"=="Yes","Yes","No")))
 # #dat$Tipping_points_struc=factor(ifelse(dat$"Tipping Points_struc"=="Yes","Yes",ifelse(dat$"Tipping Points2_struc"=="Yes","Yes","No")))
-# 
+#
 # samp=1e6 #down-sample full 10e6 distribution to fit random forests
-# 
+#
 # struc=grep("_struc",colnames(dat))[-c(1:2)]
-# 
+#
 # weights_struc=matrix(nrow=nrow(dat),ncol=length(struc))
 # for(i in 1:length(struc)){
 #   #equally-weight rows with and without structural change
 #   struc_yes=which(dat[,struc[i]]=="Yes");struc_no=which(dat[,struc[i]]=="No")
-#   
+#
 #   #assign equal total weighting to the set of obserations with and without the structural change, with uniform sampling within each group
 #   weights_struc[struc_yes,i]=1/length(struc_yes);weights_struc[struc_no,i]=1/length(struc_no)
 # }
 # #sum probability weights across rows and normalize to get probability weight for each row
 # weights=rowSums(weights_struc)/sum(rowSums(weights_struc))
-# 
+#
 # distrf=matrix(nrow=samp,ncol=2)
 # struc_samp=sample(1:nrow(dat),size=samp,replace=TRUE,prob=weights)
 # for(i in 1:samp){
 #   if(i%%10000==0) print(i)
-#   
+#
 #   distrf[i,1]=sample(dists[[struc_samp[i]]],1)
 #   distrf[i,2]=struc_samp[i]
 # }
 # colnames(distrf)=c("draw","row")
-# 
+#
 # #bind in covariates
 # param=dat%>%
 #   select("TFP Growth":"Risk Aversion (EZ Utility)")%>%
 #   replace(is.na(.),0)
 # colnames(param)=paste0(colnames(param),"_param")
-# 
+#
 # backstop=numeric(length=nrow(dat));backstop[which(dat$`Backstop Price?`=="1.0")]=1
 # failure=numeric(length=nrow(dat));failure[which(!is.na(dat$`Other Market Failure?`))]=1
 # sccyear_from2020=as.numeric(dat$`SCC Year`)-2020
 # marketonly=numeric(length=nrow(dat));marketonly[which(dat$`Market Only Damages`=="1.0")]=1
 # declining=numeric(length=nrow(dat));declining[which(dat$`Declining Discounting?` =="1.0")]=1
 # discountrate=round(dat$discountrate,2)
-# 
+#
 # covars=cbind(dat[,struc],sccyear_from2020,param,backstop,declining,marketonly,failure, discountrate,log.scc.synth=dat$log.scc.synth, missing.scc.synth=dat$missing.scc.synth)
 # covars=covars%>%
 #   mutate(dplyr::across("TFP Growth_param":"failure",~as.factor(.x)))%>%
 #   mutate(dplyr::across("TFP Growth_param":"failure",~fct_recode(.x,No="0",Yes="1")))
 # distrf=cbind(distrf,covars[distrf[,2],])
-# 
+#
 # distrf=distrf[-which(distrf$draw<quantile(distrf$draw,0.01)|distrf$draw>quantile(distrf$draw,0.99)),]
 # distrf=distrf[complete.cases(distrf),]
-# 
-# 
+#
+#
 # #fix column names
 # colnames(distrf) <- gsub(" ", ".", colnames(distrf))
 # colnames(distrf) <- gsub("/", ".", colnames(distrf))
 # colnames(distrf) <- gsub("-", ".", colnames(distrf))
 # colnames(distrf) <- gsub("\\(" ,".", colnames(distrf))
 # colnames(distrf) <- gsub(")", ".", colnames(distrf))
-# 
+#
 # bind in publication year
 # distrf=cbind(distrf,dat$Year[distrf[,2]])
 # colnames(distrf)[length(colnames(distrf))]="PublicationYear"
 # distrf$y=log(distrf$draw)
 # fwrite(distrf,file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
-# 
+#
 
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
-# 
+#
 distrf=as.data.frame(distrf)
 
 #limit to pre-2100 - vast majority of observations
@@ -228,7 +228,7 @@ distrf=distrf%>%filter(sccyear_from2020<=80)
 #distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
 # rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
-# # 
+# #
 # rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
 # rfmod_diag=model_diagnostics(rfmod_explained)
 # save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
@@ -296,12 +296,12 @@ bayespost4=bayespost3%>%
   mutate_at(2:10,.funs=~bernfunc(.x))%>%
   select(2:10)%>%
   mutate_all(~ifelse(.==1,"Yes","No"))
-  
+
 # #transform factor levels to probabilities
 # strucprobs=fig2dat_qual%>%
 #   dplyr::mutate(across(-ID,~recode(.x,!!!level_key)))%>%
 #   dplyr::mutate(across(-ID,~as.numeric(.x)))
-# 
+#
 # averageprobs=colMeans(strucprobs[,-1],na.rm=T)
 
 struclookup=data.frame(name1=predcols[grep("struc",predcols)],name2=c("Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Epstein-Zin","Ambiguity/Model Uncertainty","Limited Substitutability","Inequality Aversion","Learning","Earth System"))
@@ -318,14 +318,7 @@ years=c(2020,2050,2100)
 predictionyears=matrix(nrow=samppred,ncol=length(years))
 
 #normalize residuals by row median for sampling
-distrf$residuals=rfmod_explained$residuals
-#for each row, find median (because of quantile regression) and normalize residuals
-rowmedians=distrf%>%
-  group_by(row)%>%
-  dplyr::summarize(rowmedians=quantile(draw,0.5))
-
-distrf=full_join(distrf,rowmedians)
-distrf$normalized_resid=distrf$residuals/abs(distrf$rowmedians)
+distrf$normalized_resid=rfmod_explained$residuals / abs(rfmod_explained$y_hat)
 
 x11()
 par(mfrow=c(1,2))
