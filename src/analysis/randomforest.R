@@ -317,12 +317,8 @@ years=c(2020,2050,2100)
 
 predictionyears=matrix(nrow=samppred,ncol=length(years))
 
-#normalize residuals by row median for sampling
-distrf$normalized_resid=rfmod_explained$residuals / abs(rfmod_explained$y_hat)
-
-x11()
-par(mfrow=c(1,2))
-hist(distrf$residuals);hist(distrf$normalized_resid*171)
+##normalize residuals for sampling
+#distrf$normalized_resid=rfmod_explained$residuals / abs(rfmod_explained$y_hat)
 
 for(i in 1:length(years)){
   sampdat$sccyear_from2020=years[i]-2020
@@ -330,14 +326,15 @@ for(i in 1:length(years)){
   predictions=predict(rfmod,sampdat)
 
   #add in residuals from random forest to get full distribution
-  #dropping -Inf values from row 1113 and very large negative normalized residuals in row 499
-  fulldist=predictions$predictions+(sample(distrf$normalized_resid[-which(distrf$row%in%c(499,1113))],samppred,replace=TRUE)*quantile(predictions$predictions,0.5))
+  fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
   predictionyears[,i]=fulldist
   print(years[i])
 }
 #save(years,predictionyears,file="outputs/randomforest_predictions.rdat")
 #load(file="outputs/randomforest_predictions.rdat")
 
+fwrite(sampdat,file="outputs/rf_experiments/basepredictiondata.csv")
+fwrite(predictionyears,file="outputs/rf_experiments/2020_2050_2100.csv")
 
 means=colMeans(predictionyears)
 quants=apply(predictionyears,MARGIN=2,FUN=function(x) quantile(x,c(0.025,0.05,0.1,0.25,0.5,0.75,0.9,0.95,0.975)))
