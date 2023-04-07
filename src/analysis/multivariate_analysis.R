@@ -134,11 +134,71 @@ labels <- data.frame(pred=c('Transient.Climate.Response_param', 'Carbon.Cycle2_p
                              '#54278f', '#54278f',
                              rep('#54278f', 3)))
 
+df_paperfe2 <- distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),]
 mod_paperfe2 <- lm(log(draw)~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
             Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
-            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+discountrate+I(discountrate^2)+declining+whichmodel+backstop+failure+log.scc.synth + missing.scc.synth + factor(paper),data=distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),])
+            Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+discountrate+I(discountrate^2)+declining+whichmodel+backstop+failure+log.scc.synth + missing.scc.synth + factor(paper),data=df_paperfe2)
+
+if (F) {
+    ## Calculate X * beta
+    pdf <- data.frame()
+    for (cname in names(coef(mod_paperfe2))) {
+        if (cname == "(Intercept)")
+            next
+        asyes <- which(cname == paste0(names(distreg), "Yes"))
+        if (length(asyes) == 1) {
+            pdf <- rbind(pdf, data.frame(cname, pred=names(distreg)[asyes], parts=coef(mod_paperfe2)[cname] * mean(ifelse(df_paperfe2[, ..asyes] == "Yes", 1, 0), na.rm=T)))
+            next
+        }
+        asone <- which(cname == paste0(names(distreg), "1"))
+        if (length(asone) == 1) {
+            pdf <- rbind(pdf, data.frame(cname, pred=names(distreg)[asone], parts=coef(mod_paperfe2)[cname] * mean(ifelse(df_paperfe2[, ..asone] == "1", 1, 0), na.rm=T)))
+            next
+        }
+        astru <- which(cname == paste0(names(distreg), "TRUE"))
+        if (length(astru) == 1) {
+            pdf <- rbind(pdf, data.frame(cname, pred=names(distreg)[astru], parts=coef(mod_paperfe2)[cname] * mean(ifelse(df_paperfe2[, ..astru] == T, 1, 0), na.rm=T)))
+            next
+        }
+        if (cname %in% c("whichmodelfund", "whichmodelother", "whichmodelpage")) {
+            pdf <- rbind(pdf, data.frame(cname, pred="whichmodel", parts=coef(mod_paperfe2)[cname] * mean(df_paperfe2$whichmodel == gsub("whichmodel", "", cname))))
+            next
+        }
+        if (cname == "I(discountrate^2)") {
+            pdf <- rbind(pdf, data.frame(cname, pred=cname, parts=coef(mod_paperfe2)[cname] * mean(df_paperfe2$discountrate^2, na.rm=T)))
+            next
+        }
+        if (cname %in% c('declining', "backstop"))
+            next
+        ascol <- which(cname == names(distreg))
+        if (length(ascol) == 1) {
+            pdf <- rbind(pdf, data.frame(cname, pred=cname, parts=coef(mod_paperfe2)[cname] * mean(unlist(df_paperfe2[, ..ascol]), na.rm=T)))
+            next
+        }
+    }
+
+    pdf <- rbind(pdf, data.frame(cname="Paper FE", pred="Paper FE", parts=mean(log(df_paperfe2$draw)) - sum(pdf$parts)))
+
+    pdf %>% left_join(labels)
+
+    pdf2 <- rbind(labels, data.frame(pred="Paper FE", type="other", label="Paper FE", color="#808080")) %>% left_join(pdf)
+    pdf2$pred <- factor(pdf2$pred, levels=pdf2$pred[!duplicated(pdf2$pred)])
+    pdf2$precolor <- pdf2$color
+    pdf2$precolor[!(pdf2$label %in% c('Socioeconomic Uncertainty', 'Discounting', 'Pure Time Preference', 'Elasticity of Marginal Utility', 'Damage Function Parameters', 'Paper FE'))] <- "#ffffb3"
+
+    pdf3 <- pdf2 %>% group_by(precolor) %>% summarize(pred=pred[1], parts=sum(parts))
+    pdf3$pred <- factor(pdf3$pred, levels=pdf3$pred[!duplicated(pdf3$pred)])
+
+    ggplot(pdf3, aes(x=1, y=parts)) +
+        geom_bar(aes(group=pred, fill=precolor), stat="identity") +
+        scale_fill_identity() + ylab("Components of log SCC")
+
+    ggplot(subset(pdf2, precolor != color), aes(x=1, y=parts)) +
+        geom_bar(aes(group=pred, fill=color), stat="identity") +
+        scale_fill_identity() + ylab("Components of log SCC")
+}
 
 anv <- anova(mod_paperfe2)
 anvdf <- as.data.frame(anv)
@@ -169,6 +229,99 @@ ggplot(anvdf2, aes(x=1, y=`Sum Sq`)) +
     theme_bw() + theme(legend.justification=c(1,1), legend.position=c(.995,.995),
                             axis.text.x=element_blank(), axis.ticks.x=element_blank())
 ggsave("figures/anova.pdf", width=3.5, height=5)
+
+allpreds <- c('Earth_system_struc', 'Tipping.Points_struc', 'Tipping.Points2_struc', 'Persistent...Growth.Damages_struc',
+              'Epstein.Zin_struc', 'Ambiguity.Model.Uncertainty_struc', 'Limitedly.Substitutable.Goods_struc',
+              'Inequality.Aversion_struc', 'Learning_struc', 'TFP.Growth_param', 'Population.Growth_param',
+              'Emissions.Growth_param', 'Transient.Climate.Response_param', 'Carbon.Cycle2_param',
+              'Equilibrium.Climate.Sensitivity_param', 'Tipping.Point.Magnitude_param', 'Damage.Function_param',
+              'Adaptation.Rates_param', 'Income.Elasticity_param', 'Constant.Discount.Rate_param', 'EMUC2_param',
+              'PRTP2_param', 'Risk.Aversion..EZ.Utility._param', 'discountrate', 'declining', 'whichmodel', 'backstop',
+              'failure', 'log.scc.synth')
+
+mcresults <- data.frame()
+for (ii in -length(allpreds):1000) {
+    if (ii %in% mcresults$mc)
+        next
+    print(ii)
+    rm(mod)
+    if (ii == 0)
+        preds <- allpreds
+    else if (ii < 0)
+        preds <- allpreds[ii]
+    else
+        preds <- sample(allpreds, sample((length(allpreds)-1), 1))
+    if ("discountrate" %in% preds)
+        preds <- c(preds, 'I(discountrate^2)')
+    if ("log.scc.synth" %in% preds)
+        preds <- c(preds, 'missing.scc.synth')
+
+    mod <- lm(as.formula(paste0("log(draw) ~ ", paste(preds, collapse='+'), " + factor(paper)")),
+              data=distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),])
+
+    anv <- anova(mod)
+    anvdf <- as.data.frame(anv)
+    anvdf$pred <- rownames(anvdf)
+
+    anvdf <- anvdf[!(anvdf$pred %in% c("Residuals", "factor(paper)")),]
+    anvdf$cumss <- 1 - cumsum(anvdf$`Sum Sq`) / sum(anvdf$`Sum Sq`)
+    mcresults <- rbind(mcresults, cbind(mc=ii, anvdf))
+}
+
+write.csv(mcresults, "outputs/anovamc.csv", row.names=F)
+mcresults <- read.csv("outputs/anovamc.csv")
+
+bymc <- mcresults %>% group_by(mc) %>%
+    summarize(oops=("missing.scc.synth" %in% pred && !('log.scc.synth' %in% pred)) ||
+                  (!("missing.scc.synth" %in% pred) && 'log.scc.synth' %in% pred),
+              npred=length(pred[!(pred %in% c("I(discountrate^2)", "missing.scc.synth"))]),
+              TotSq=sum(Sum.Sq))
+
+mcsum <- subset(mcresults, mc == 0) %>% left_join(bymc) %>%
+    left_join(subset(mcresults, mc > 0) %>% left_join(bymc) %>%
+              group_by(pred) %>% summarize(mu=mean(Sum.Sq / TotSq), q025=quantile(Sum.Sq / TotSq, .025),
+                                           q975=quantile(Sum.Sq / TotSq, .975))) %>%
+    left_join(subset(mcresults, mc < 0) %>% left_join(bymc) %>%
+              group_by(pred) %>% summarize(mu=mean(Sum.Sq / TotSq), q025=quantile(Sum.Sq / TotSq, .025),
+                                           q975=quantile(Sum.Sq / TotSq, .975)), by='pred', suffix=c('.all', '.one'))
+
+mcsum$mu <- mcsum$Sum.Sq / mcsum$TotSq
+mcsum2 <- mcsum[, c('pred', 'mu', 'mu.all', 'q025.all', 'q975.all', 'mu.one', 'q025.one', 'q975.one')]
+mcsum3 <- rbind(mcsum2[c(1:23, 25:26),],
+                cbind(pred='log.scc.synth', mcsum2[27,-1] + mcsum2[29,-1]),
+                cbind(pred='discountrate', mcsum2[24,-1] + mcsum2[28,-1]))
+
+mcsum4 <- mcsum3 %>%
+    left_join(data.frame(pred=c('Transient.Climate.Response_param', 'Carbon.Cycle2_param', 'Equilibrium.Climate.Sensitivity_param',
+                                'Earth_system_struc',
+                                'Tipping.Points_struc', 'Tipping.Point.Magnitude_param', 'Tipping.Points2_struc',
+                                'Persistent...Growth.Damages_struc', 'Limitedly.Substitutable.Goods_struc', 'Inequality.Aversion_struc',
+                                'Risk.Aversion..EZ.Utility._param', 'Epstein.Zin_struc',
+                                'whichmodel', 'Ambiguity.Model.Uncertainty_struc',
+                                'Learning_struc', 'failure',
+                                'TFP.Growth_param', 'Population.Growth_param', 'Emissions.Growth_param',
+                                'Constant.Discount.Rate_param', 'discountrate',
+                                'PRTP2_param', 'EMUC2_param',
+                                'log.scc.synth',
+                                'Damage.Function_param', 'Adaptation.Rates_param', 'Income.Elasticity_param'),
+                         label=c("Trans. Climate Resp.", "Carbon Cycle (Param)", "Eqm. Climate Sens.",
+                                 "Earth System",
+                                 "Climate Tipping Points", "Damages Tipping Points", "Tipping Point Size",
+                                 "Growth Damages", "Limited-Substitutability", "Inequality Aversion",
+                                 "Risk Aversion", "Epstein Zin",
+                                 "Model group", "Ambiguity",
+                                 "Learning", "Other Market Failure",
+                                 "TFP Growth", "Pop Growth","Emissions Growth",
+                                 "Const. Discount Rate", "Discount Rate",
+                                 "PRTP", "EMUC",
+                                 "Damage-based SCC",
+                                 "Damage Function", "Adaptation Rates", "Income Elasticity")))
+mcsum4$ci.all <- paste0("[", paste(round(100 * mcsum4$q025.all), round(100 * mcsum4$q975.all), sep=' - '), "]")
+mcsum4$ci.one <- paste0("[", paste(round(100 * mcsum4$q025.one), round(100 * mcsum4$q975.one), sep=' - '), "]")
+
+library(xtable)
+print(xtable(cbind(mcsum4$label, round(100 * mcsum4$mu, 2), round(100 * mcsum4$mu.one, 2), mcsum4$ci.one,
+                   round(100 * mcsum4$mu.all, 2), mcsum4$ci.all)), include.rownames=F)
 
 varnames=c("sccyear_from2020" ="SCC Year","I(I(sccyear_from2020^2))" ="SCC Year^2","discountrate" ="Discount Rate","I(I(discountrate^2))"="Discount Rate^2","declining"="Declining DR","Earth_system_strucYes"="Earth System", "Tipping.Points_strucYes" ="Climate Tipping Points","Tipping.Points2_strucYes"="Damages Tipping Points", "Persistent...Growth.Damages_strucYes"="Growth Damages","Epstein.Zin_strucYes"="Epstein Zin","Ambiguity.Model.Uncertainty_strucYes"="Ambiguity","Limitedly.Substitutable.Goods_strucYes" ="Limited-Substitutability","Inequality.Aversion_strucYes"="Inequality Aversion","Learning_strucYes"="Learning","TFP.Growth_paramYes"="TFP Growth","Population.Growth_paramYes"="Pop Growth","Emissions.Growth_paramYes"="Emissions Growth", "Transient.Climate.Response_paramYes" ="Trans. Climate Resp.","Carbon.Cycle2_paramYes" ="Carbon Cycle (Param)","Equilibrium.Climate.Sensitivity_paramYes"="Eqm. Climate Sens.", "Tipping.Point.Magnitude_paramYes"="Tipping Point Size","Damage.Function_paramYes"="Damage Function","Adaptation.Rates_paramYes" ="Adaptation Rates","Income.Elasticity_paramYes"="Income Elasticity","Constant.Discount.Rate_paramYes" ="Const. Discount Rate","EMUC2_paramYes" ="EMUC", "PRTP2_paramYes"="PRTP","Risk.Aversion..EZ.Utility._paramYes" ="Risk Aversion", "dicemodel"="DICE","fundmodel"="FUND","pagemodel" ="PAGE","backstop"="Backstop Price","failure"="Other Market Failure","log.scc.synth"="Damage-based SCC")
 
