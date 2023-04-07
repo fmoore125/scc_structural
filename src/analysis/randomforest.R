@@ -320,13 +320,28 @@ predictionyears=matrix(nrow=samppred,ncol=length(years))
 ##normalize residuals for sampling
 #distrf$normalized_resid=rfmod_explained$residuals / abs(rfmod_explained$y_hat)
 
+distrf$yhat <- rfmod$predictions
+distrf.sum <- distrf %>% dplyr::group_by(row) %>% dplyr::summarize(mu=mean(yhat), sd=sd(yhat), prob=length(draw) / nrow(distrf))
+
 for(i in 1:length(years)){
   sampdat$sccyear_from2020=years[i]-2020
 
   predictions=predict(rfmod,sampdat)
 
+  ## Assign a distribution to each
+  resids <- rep(NA, length(predictions$predictions))
+  roundeddraws <- round(predictions$predictions)
+  for (draw in unique(roundeddraws)) {
+      print(draw)
+      probs <- dnorm(draw, distrf.sum$mu, distrf.sum$sd) * distrf.sum$prob
+      rows <- sample(distrf.sum$row, sum(roundeddraws == draw), prob=probs, replace=T)
+      for (row in unique(rows)) {
+          resids[roundeddraws == draw][rows == row] <- sample(rfmod_explained$residuals[distrf$row == row], sum(rows == row), replace=T)
+      }
+  }
+
   #add in residuals from random forest to get full distribution
-  fulldist=predictions$predictions+sample(rfmod_explained$residuals,samppred,replace=TRUE)
+  fulldist=predictions$predictions+resids
   predictionyears[,i]=fulldist
   print(years[i])
 }
