@@ -141,3 +141,11 @@ for (dmgfunc in unique(dat$`Damage Function Info: Model, Commonly-Used Function,
 dat$log.scc.synth <- log(dat$scc.synth)
 dat$missing.scc.synth <- !is.finite(dat$log.scc.synth)
 dat$log.scc.synth[dat$missing.scc.synth] <- 0
+
+## Calculate for standard models
+if (F) {
+    calc.scc(dice.2016r2, emitdf, year0, gdp0, discountrate)
+    calc.scc(fund.3.8, emitdf, year0, gdp0, discountrate)
+    calc.scc(page.09, emitdf, year0, gdp0, discountrate)
+    calc.scc(function(T) 0.007438 * T^2, emitdf, year0, gdp0, discountrate)
+}
