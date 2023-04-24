@@ -57,7 +57,7 @@ predictions_EPA=predict(rfmod,sampdat_EPA)
 fwrite(as.data.table(predictions_EPA),file="outputs/rf_experiments/B_EPA.csv")
 
 #C. Expert elicitation result - done in randomforest.R
-#D. All structural changes
+#D. All structural changes and no structural changes
 sampdat_allstruc=sampdat[sample(1:nrow(sampdat),samppred,replace=FALSE),]
 sampdat_allstruc[,grep("_struc",colnames(sampdat_allstruc))]="Yes"
 predictions_allstruc=predict(rfmod,sampdat_allstruc)
@@ -65,8 +65,15 @@ predictions_allstruc=predict(rfmod,sampdat_allstruc)
 
 fwrite(as.data.table(predictions_allstruc),file="outputs/rf_experiments/C_allstruc.csv")
 
+sampdat_nostruc=sampdat[sample(1:nrow(sampdat),samppred,replace=FALSE),]
+sampdat_nostruc[,grep("_struc",colnames(sampdat_nostruc))]="No"
+predictions_nostruc=predict(rfmod,sampdat_nostruc)
+
+fwrite(as.data.table(predictions_nostruc),file="outputs/rf_experiments/C_nostruc.csv")
+
+
 #E. Multiple constant discount rates (1, 1.5, 2.5, 3, 5)
-discs=c(1,1.5,2.5,3,5)
+discs=c(1,1.5,2,2.5,3,5)
 
 for(i in 1:length(discs)){
   sampdat_discs=sampdat[sample(1:nrow(sampdat),samppred,replace=FALSE),]
