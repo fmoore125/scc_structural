@@ -12,6 +12,9 @@ library(ggridges)
 library(plyr)
 library(xtable)
 
+redo.forest <- F
+do.corrected.importance <- F
+
 dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/damage_funcs_lib.R")
@@ -221,41 +224,51 @@ if (F) {
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 #
 distrf=as.data.frame(distrf)
+for (col in c(names(distrf)[grep("_struc|_param", names(distrf))], 'backstop', 'declining', 'marketonly', 'failure'))
+    distrf[, col] <- factor(distrf[, col], levels=c('No', 'Yes'))
 
 #limit to pre-2100 - vast majority of observations
 distrf=distrf%>%filter(sccyear_from2020<=80)
 #remove 2.6% of distribution with values <=0 that can't be logged
 #distrf=distrf[-which(is.na(distrf$y)|is.infinite(distrf$y)),]
 
-# rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE)
-# #
-# rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
-# rfmod_diag=model_diagnostics(rfmod_explained)
-# save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
-load(file="outputs/randomforestmodel.Rdat")
+if (redo.forest) {
+    if (do.corrected.importance)
+        rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,importance="impurity_corrected",quantreg=TRUE) # dropped
+    else
+        rfmod=ranger(draw~.,data=distrf%>%select(-c(row)),num.trees=500,min.node.size=200,max.depth=12,verbose=TRUE,quantreg=TRUE)
+    rfmod_explained=DALEX::explain(rfmod,data=distrf%>%select(-c(draw,row)),y=distrf$draw)
+    rfmod_diag=model_diagnostics(rfmod_explained)
+    if (!do.corrected.importance)
+        save(rfmod, rfmod_explained,rfmod_diag,file="outputs/randomforestmodel.Rdat")
+} else {
+    load(file="outputs/randomforestmodel.Rdat")
+}
 
-rfmod_mod=model_parts(rfmod_explained);
-rfmod_mod$variable=fct_recode(rfmod_mod$variable,"SCC Year"="sccyear_from2020","Discount Rate"="discountrate","Log Damage-based SCC"="log.scc.synth","Declining DR"="declining","Earth System"="Earth_system_struc","Climate Tipping Points"="Tipping.Points_struc","Damages Tipping Points"="Tipping.Points2_struc","Growth Damages"="Persistent...Growth.Damages_struc","Epstein Zin"="Epstein.Zin_struc","Ambiguity"="Ambiguity.Model.Uncertainty_struc","Limited-Substitutability"="Limitedly.Substitutable.Goods_struc","Inequality Aversion"="Inequality.Aversion_struc","Learning"="Learning_struc","TFP Growth"="TFP.Growth_param","Pop Growth"="Population.Growth_param","Emissions Growth"="Emissions.Growth_param","Trans. Climate Resp"="Transient.Climate.Response_param","Carbon Cycle (param)"="Carbon.Cycle2_param","Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_param","Tipping Point Size"="Tipping.Point.Magnitude_param","Damage Function"="Damage.Function_param","Adaptation Rates"="Adaptation.Rates_param","Income Elasticity"="Income.Elasticity_param","Const. Disc. Rate"="Constant.Discount.Rate_param","EMUC"="EMUC2_param","PRTP"="PRTP2_param","Risk Aversion"="Risk.Aversion..EZ.Utility._param","Backstop Price"="backstop","Other Market Failure"="failure","Market Only Damages"="marketonly","Missing Damage SCC"="missing.scc.synth","Pub Year"="PublicationYear")
-#customize feature importance plot
-moddat=rfmod_mod%>%
-  group_by(variable)%>%
-  dplyr::summarize(mean=mean(dropout_loss),min=min(dropout_loss),max=max(dropout_loss))%>%
-  filter(variable!="_baseline_"&variable!="_full_model_")%>%
-  arrange(desc(mean))
-moddat$variable=fct_reorder(moddat$variable,moddat$mean)
-moddat$type=c("Other","Other","Struc","Struc","Damage Func","Other","Damage Func","Param","Damage Func","Struc","Struc","Struc","Param","Struc","Param","Param","Struc","Struc","Param","Struc","Param","Param","Param","Param","Param","Other","Param","Param","Other","Other","Other","Other")
-moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
+if (do.corrected.importance) {
+    rfmod_mod=model_parts(rfmod_explained);
+    rfmod_mod$variable=fct_recode(rfmod_mod$variable,"SCC Year"="sccyear_from2020","Discount Rate"="discountrate","Log Damage-based SCC"="log.scc.synth","Declining DR"="declining","Earth System"="Earth_system_struc","Climate Tipping Points"="Tipping.Points_struc","Damages Tipping Points"="Tipping.Points2_struc","Growth Damages"="Persistent...Growth.Damages_struc","Epstein Zin"="Epstein.Zin_struc","Ambiguity"="Ambiguity.Model.Uncertainty_struc","Limited-Substitutability"="Limitedly.Substitutable.Goods_struc","Inequality Aversion"="Inequality.Aversion_struc","Learning"="Learning_struc","TFP Growth"="TFP.Growth_param","Pop Growth"="Population.Growth_param","Emissions Growth"="Emissions.Growth_param","Trans. Climate Resp"="Transient.Climate.Response_param","Carbon Cycle (param)"="Carbon.Cycle2_param","Eqm. Climate Sens."="Equilibrium.Climate.Sensitivity_param","Tipping Point Size"="Tipping.Point.Magnitude_param","Damage Function"="Damage.Function_param","Adaptation Rates"="Adaptation.Rates_param","Income Elasticity"="Income.Elasticity_param","Const. Disc. Rate"="Constant.Discount.Rate_param","EMUC"="EMUC2_param","PRTP"="PRTP2_param","Risk Aversion"="Risk.Aversion..EZ.Utility._param","Backstop Price"="backstop","Other Market Failure"="failure","Market Only Damages"="marketonly","Missing Damage SCC"="missing.scc.synth","Pub Year"="PublicationYear")
+    ##customize feature importance plot
+    moddat=rfmod_mod%>%
+        group_by(variable)%>%
+        dplyr::summarize(mean=mean(dropout_loss),min=min(dropout_loss),max=max(dropout_loss))%>%
+        filter(variable!="_baseline_"&variable!="_full_model_")%>%
+        arrange(desc(mean))
+    moddat$variable=fct_reorder(moddat$variable,moddat$mean)
+    moddat$type=c("Other","Other","Struc","Struc","Damage Func","Other","Damage Func","Param","Damage Func","Struc","Struc","Struc","Param","Struc","Param","Param","Struc","Struc","Param","Struc","Param","Param","Param","Param","Param","Other","Param","Param","Other","Other","Other","Other")
+    moddat$type=fct_relevel(moddat$type,c("Struc","Param","Damage Func","Other"))
 
-a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
-a=a+theme_bw()+geom_errorbar(col="black",width=0)+labs(title="Feature Importance, Random Forest Model",y="",x="RMSE Loss After Permutations",color="")
-a=a+scale_color_manual(values=met.brewer(name="Lakota", n=4, type="discrete"),labels=c("Structural","Parametric","Damage Func.","Other"))
-a=a+theme(legend.position = c(0.92, 0.2))
+    a=ggplot(moddat,aes(y=variable,yend=variable,x=1,xend=mean,xmin=min,xmax=max,color=type))+geom_segment(size=5)
+    a=a+theme_bw()+geom_errorbar(col="black",width=0)+labs(title="Feature Importance, Random Forest Model",y="",x="RMSE Loss After Permutations",color="")
+    a=a+scale_color_manual(values=met.brewer(name="Lakota", n=4, type="discrete"),labels=c("Structural","Parametric","Damage Func.","Other"))
+    a=a+theme(legend.position = c(0.92, 0.2))
 
-rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent...Growth.Damages_struc")
-rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate")
-rfmod_prof=model_profile(rfmod_explained,N=500,variable="log.scc.synth")
+    rfmod_prof=model_profile(rfmod_explained,N=500,variable="sccyear_from2020",groups="Persistent...Growth.Damages_struc")
+    rfmod_prof=model_profile(rfmod_explained,N=500,variable="discountrate")
+    rfmod_prof=model_profile(rfmod_explained,N=500,variable="log.scc.synth")
 
-plot(rfmod_prof,geom="profiles")
+    plot(rfmod_prof,geom="profiles")
+}
 
 #add predictions from random forest
 
@@ -266,10 +279,11 @@ sampdat=matrix(nrow=samppred,ncol=length(predcols))
 colnames(sampdat)=predcols
 sampdat=as.data.frame(sampdat)
 
-#set obvious ones
-sampdat[,grep("param",predcols)]="Yes"
-sampdat$backstop="No";sampdat$declining="Yes";sampdat$marketonly="No"
-sampdat$failure="No";sampdat$missing.scc.synth=FALSE
+##set obvious ones
+for (cc in grep("param",predcols))
+    sampdat[,cc]=factor("Yes", levels=c('No', 'Yes'))
+sampdat$backstop=factor("No", levels=c('No', 'Yes'));sampdat$declining=factor("Yes", levels=c('No', 'Yes'));sampdat$marketonly=factor("No", levels=c('No', 'Yes'))
+sampdat$failure=factor("No", levels=c('No', 'Yes'));sampdat$missing.scc.synth=FALSE
 #for synthetic scc - draw from literature values
 sampdat$log.scc.synth=sample(dat$log.scc.synth[-which(dat$log.scc.synth==0)],samppred,replace=TRUE)
 sampdat$PublicationYear=2020
@@ -306,10 +320,11 @@ bayespost4=bayespost3%>%
 
 struclookup=data.frame(name1=predcols[grep("struc",predcols)],name2=c("Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Epstein-Zin","Ambiguity/Model Uncertainty","Limited Substitutability","Inequality Aversion","Learning","Earth System"))
 
+bayespost4 <- as.data.frame(bayespost4) # convert so factor(...) works
 for(i in 1:nrow(struclookup)){
   probname=which(names(bayespost4)==struclookup$name2[i])
   col=which(colnames(sampdat)==struclookup$name1[i])
-  sampdat[,col]=bayespost4[,probname]
+  sampdat[,col]=factor(bayespost4[,probname], levels=c('No', 'Yes'))
 }
 
 #loop through a set of years to get scc distribution over time
@@ -317,11 +332,27 @@ years=c(2020,2050,2100)
 
 predictionyears=matrix(nrow=samppred,ncol=length(years))
 
-##normalize residuals for sampling
-#distrf$normalized_resid=rfmod_explained$residuals / abs(rfmod_explained$y_hat)
-
 distrf$yhat <- rfmod$predictions
-distrf.sum <- distrf %>% dplyr::group_by(row) %>% dplyr::summarize(mu=mean(yhat), sd=sd(yhat), prob=length(draw) / nrow(distrf))
+distrf$resid <- rfmod_explained$residuals
+distrf.sum <- distrf %>% dplyr::group_by(row) %>% dplyr::summarize(mu=mean(yhat), sd=sd(yhat), mu.resid=mean(resid), sd.draw=sd(draw), prob=length(draw) / nrow(distrf)) %>% filter(sd.draw > 0)
+
+gp <- ggplot(distrf %>% left_join(distrf.sum) %>% filter(!is.na(sd.draw)), aes(x=yhat, fill=sd.draw, colour=sd.draw, group=sd.draw)) +
+    geom_area(stat='bin', bins=300, position = "fill") +
+    scale_fill_binned("Residual\nstandard\ndeviation:", na.value="black", n.breaks=8, trans='log10') +
+    scale_colour_binned("Residual\nstandard\ndeviation:", na.value="black", n.breaks=8, trans='log10') +
+    scale_x_log10("Predicted SCC (2020 US Dollars)", expand=c(0, 0)) +
+    scale_y_continuous("Share of residuals, by std. dev.", expand=c(0, 0)) +
+    theme_bw()
+ggsave("figures/rfresids.pdf", width=6.5, height=5)
+
+gp <- ggplot(distrf %>% left_join(distrf.sum) %>% filter(!is.na(sd.draw)), aes(x=yhat, fill=mu.resid, colour=mu.resid, group=mu.resid)) +
+    geom_area(stat='bin', bins=300, position = "fill") +
+    scale_fill_steps2("Residual\nstandard\ndeviation:", na.value="black", breaks=c(-200, -100, 0, 100, 200, 300, 400)) +
+    scale_colour_steps2("Residual\nstandard\ndeviation:", na.value="black", breaks=c(-200, -100, 0, 100, 200, 300, 400)) +
+    scale_x_log10("Predicted SCC (2020 US Dollars)", expand=c(0, 0)) +
+    scale_y_continuous("Share of residuals, by std. dev.", expand=c(0, 0)) +
+    theme_bw()
+ggsave("figures/rfresids-mu.pdf", width=6.5, height=5)
 
 for(i in 1:length(years)){
   sampdat$sccyear_from2020=years[i]-2020
@@ -378,7 +409,7 @@ dist_quants=merge(dist_quants,yvals)
 dist_quants=pivot_wider(dist_quants,id_cols=c(name,y),names_from=quants,values_from = value)
 colnames(dist_quants)=c("name","y","lowest","min","lower","mid","upper","max","highest")
 
-a=ggplot(data.frame(x=vals),aes(y=x))+geom_density(color="purple2",lwd=0.75)
+a=ggplot(data.frame(x=vals),aes(y=x))+geom_density(color="purple2",lwd=0.75, adjust=3)
 #a=a+geom_density(data=surveydat%>%filter(type=="Tru"),aes(y=dist),color="steelblue1",inherit.aes=FALSE,lwd=0.5)
 a=a+geom_vline(xintercept = 0)
 a=a+theme_bw()+theme(axis.ticks.y=element_blank(),text=element_text(size=18))+labs(y="2020 SCC (2020 US Dollars)",x="",color="")+scale_x_continuous(labels=NULL)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1600, by=100)), limits=c(-150,1600), expand=c(0, 0))
