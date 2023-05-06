@@ -224,7 +224,13 @@ if (F) {
 distrf=fread(file="outputs/distribution_structuralchangeweighted_withcovars_v2.csv")
 #
 distrf=as.data.frame(distrf)
-for (col in c(names(distrf)[grep("_struc|_param", names(distrf))], 'backstop', 'declining', 'marketonly', 'failure'))
+
+for(col in c(names(distrf)[grep("_param", names(distrf))], 'backstop', 'declining', 'marketonly', 'failure')){
+  distrf[,col] <- factor(distrf[, col], levels=c(0, 1))
+  distrf[,col] = fct_recode(distrf[,col],No="0",Yes="1")
+}
+
+for (col in c(names(distrf)[grep("_struc", names(distrf))]))
     distrf[, col] <- factor(distrf[, col], levels=c('No', 'Yes'))
 
 #limit to pre-2100 - vast majority of observations
@@ -359,7 +365,7 @@ for(i in 1:length(years)){
 
   predictions=predict(rfmod,sampdat)
 
-  ## Assign a distribution to each
+  # ## Assign a distribution to each
   resids <- rep(NA, length(predictions$predictions))
   roundeddraws <- round(predictions$predictions)
   for (draw in unique(roundeddraws)) {
