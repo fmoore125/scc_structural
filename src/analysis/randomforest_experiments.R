@@ -16,25 +16,13 @@ sampdat=fread(file="outputs/rf_experiments/basepredictiondata.csv")
 sampdat <- as.data.frame(sampdat)
 for (col in c(names(sampdat)[grep("_struc|_param", names(sampdat))], 'backstop', 'declining', 'marketonly', 'failure'))
     sampdat[, col] <- factor(sampdat[, col], levels=c('No', 'Yes'))
+sampdat$sccyear_from2020 <- 0
 
-## Test effect of categoricals
-sampdat_TEST1=sampdat[sample(1:nrow(sampdat),samppred,replace=FALSE),]
-for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
-    sampdat_TEST1[,cc]=factor("No", levels=c('No', 'Yes'))
-predictions_TEST1=predict(rfmod,sampdat_TEST1)
-preds1 <- predictions_TEST1$predictions
-
-sampdat_TEST2=sampdat_TEST1
-for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
-    sampdat_TEST2[,cc]=factor("Yes", levels=c('No', 'Yes'))
-predictions_TEST2=predict(rfmod,sampdat_TEST2)
-preds2 <- predictions_TEST2$predictions
-
-head(data.frame(preds1, preds2))
 ## NOTE: Need to set factors one at a time, or converted back to character
 
 #----A. No structural changes (classic DICE assumptions)-----
-sampdat_DICE=sampdat[sample(1:nrow(sampdat),samppred,replace=FALSE),]
+DICErows <- sample(1:nrow(sampdat),samppred,replace=FALSE)
+sampdat_DICE=sampdat[DICErows,]
 ##no structural or parametric changes
 for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
     sampdat_DICE[,cc]=factor("No", levels=c('No', 'Yes'))
@@ -130,6 +118,108 @@ for(i in 1:length(damages)){
   print(i)
 }
 
+## I. Build-up from DICE
 
 
 
+## I1. DICE + structural changes
+sampdat_buildup=sampdat[DICErows,]
+for (cc in grep("param",names(sampdat)))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+sampdat_buildup$discountrate=4.6
+#damage functions are sampled from DICE damage functions from post 2000
+rel=which(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("DICE-2007","DICE-2013R","DICE-2016R2","DICE 2007","DICE 2010","DICE 2013","DICE 2013R","DICE 2016","DICE2007","DICE2010","DICE2013","DICE2016R"))
+sampdat_buildup$log.scc.synth=sample(dat$log.scc.synth[rel],samppred,replace=TRUE)
+sampdat_buildup$declining=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_1.csv")
+
+## I2. I1 + parametric uncertainty
+sampdat_buildup=sampdat[DICErows,]
+sampdat_buildup$discountrate=4.6
+#damage functions are sampled from DICE damage functions from post 2000
+rel=which(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("DICE-2007","DICE-2013R","DICE-2016R2","DICE 2007","DICE 2010","DICE 2013","DICE 2013R","DICE 2016","DICE2007","DICE2010","DICE2013","DICE2016R"))
+sampdat_buildup$log.scc.synth=sample(dat$log.scc.synth[rel],samppred,replace=TRUE)
+sampdat_buildup$declining=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_2.csv")
+
+## I3. I2 + discounting
+sampdat_buildup=sampdat[DICErows,]
+#damage functions are sampled from DICE damage functions from post 2000
+rel=which(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("DICE-2007","DICE-2013R","DICE-2016R2","DICE 2007","DICE 2010","DICE 2013","DICE 2013R","DICE 2016","DICE2007","DICE2010","DICE2013","DICE2016R"))
+sampdat_buildup$log.scc.synth=sample(dat$log.scc.synth[rel],samppred,replace=TRUE)
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_3.csv")
+
+## I4. I3 + damages
+sampdat_buildup=sampdat[DICErows,]
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_4.csv")
+
+## I5. DICE + damages
+sampdat_buildup=sampdat[DICErows,]
+for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+sampdat_buildup$discountrate=4.6
+sampdat_buildup$declining=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_5.csv")
+
+## I6. I5 + discounting
+sampdat_buildup=sampdat[DICErows,]
+for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_6.csv")
+
+## I7. I6 + structural
+sampdat_buildup=sampdat[DICErows,]
+for (cc in grep("param",names(sampdat)))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_7.csv")
+
+## I8. I1 + damages
+sampdat_buildup=sampdat[DICErows,]
+for (cc in grep("param",names(sampdat)))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+sampdat_buildup$discountrate=4.6
+sampdat_buildup$declining=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_8.csv")
+
+## I9. I8 + discounting
+sampdat_buildup=sampdat[DICErows,]
+for (cc in grep("param",names(sampdat)))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+predictions_buildup=predict(rfmod,sampdat_buildup)
+fwrite(data.table(prediction=predictions_buildup$predictions),file="outputs/rf_experiments/I_9.csv")
+
+## JN. DICE + structural + damages + discounting + uncertainty, broken down
+sampdat_buildup=sampdat[DICErows,]
+for (cc in c(grep("param",names(sampdat)),grep("struc",names(sampdat))))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+sampdat_buildup$discountrate=4.6
+#damage functions are sampled from DICE damage functions from post 2000
+rel=which(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("DICE-2007","DICE-2013R","DICE-2016R2","DICE 2007","DICE 2010","DICE 2013","DICE 2013R","DICE 2016","DICE2007","DICE2010","DICE2013","DICE2016R"))
+sampdat_buildup$log.scc.synth=sample(dat$log.scc.synth[rel],samppred,replace=TRUE)
+sampdat_buildup$declining=factor("No", levels=c('No', 'Yes'))
+
+for (cc in grep("struc",names(sampdat))) {
+    sampdat_buildup[,cc]=sampdat[DICErows, cc]
+
+    predictions_buildup=predict(rfmod,sampdat_buildup)
+    fwrite(data.table(prediction=predictions_buildup$predictions),file=paste0("outputs/rf_experiments/J_", cc, ".csv"))
+}
+
+sampdat_buildup=sampdat[DICErows,]
+for (cc in grep("param",names(sampdat)))
+    sampdat_buildup[,cc]=factor("No", levels=c('No', 'Yes'))
+
+for (cc in grep("param",names(sampdat))) {
+    sampdat_buildup[,cc]=sampdat[DICErows, cc]
+
+    predictions_buildup=predict(rfmod,sampdat_buildup)
+    fwrite(data.table(prediction=predictions_buildup$predictions),file=paste0("outputs/rf_experiments/J_", cc, ".csv"))
+}
