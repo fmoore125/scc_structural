@@ -59,7 +59,7 @@ add.bigtbl.row('2100', df$X2100)
 
 df2 <- rbind(get.density(df$X2020, '2020'), get.density(df$X2050, '2050'), get.density(df$X2100, '2100'))
 df3 <- melt(df) %>% left_join(data.frame(variable=c('X2020', 'X2050', 'X2100'), group=c('2020', '2050', '2100')))
-df3.sum <- df3 %>% group_by(group) %>% summarize(x=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75))
+df3.sum <- df3 %>% group_by(group) %>% summarize(x=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value))
 df3.sum$y <- sapply(1:nrow(df3.sum), function(ii) {
     approxfun(df2$x[df2$group == df3.sum$group[ii]], df2$y[df2$group == df3.sum$group[ii]])(df3.sum$x[df3.sum$group == df3.sum$group[ii]])})
 
@@ -117,18 +117,18 @@ ggplot.draws <- function(df.x, levels, ltitle, outfile) {
 }
 
 df.xstruct <- rbind(read.and.resid("outputs/rf_experiments/C_nostruc.csv", 'None'),
-                    data.frame(yhat=NA, value=df$X2020, group='Expert + Lit.'),
+                    data.frame(yhat=NA, value=df$X2020, group='Synthetic SCC'),
                     read.and.resid("outputs/rf_experiments/C_allstruc.csv", 'All'))
 
-ggplot.draws(df.xstruct, c('Expert + Lit.', 'None', 'All'), "Structural Set:", "figure4-struct.pdf")
+ggplot.draws(df.xstruct, c('Synthetic SCC', 'None', 'All'), "Structural Set:", "figure4-struct.pdf")
 
 df.xstruct2 <- rbind(read.and.resid("outputs/rf_experiments/C_nostruc.csv", 'None'),
                      read.and.resid("outputs/rf_experiments/A_DICE.csv", 'DICE'),
-                    read.and.resid("outputs/rf_experiments/B_EPA.csv", 'EPA'),
-                    data.frame(yhat=NA, value=df$X2020, group='Expert + Lit.'),
-                    read.and.resid("outputs/rf_experiments/C_allstruc.csv", 'All'))
+                     read.and.resid("outputs/rf_experiments/B_EPA.csv", 'EPA'),
+                     data.frame(yhat=NA, value=df$X2020, group='Synthetic SCC'),
+                     read.and.resid("outputs/rf_experiments/C_allstruc.csv", 'All'))
 
-ggplot.draws(df.xstruct2, c('Expert + Lit.', 'None', 'DICE', 'EPA', 'All'), "Structural Set:", "figure4-struct2.pdf")
+ggplot.draws(df.xstruct2, c('Synthetic SCC', 'None', 'DICE', 'EPA', 'All'), "Structural Set:", "figure4-struct2.pdf")
 
 df.xdrate <- rbind(read.and.resid("outputs/rf_experiments/E_discountrates_1.csv", '1%'),
                    ##read.and.resid("outputs/rf_experiments/E_discountrates_1.5.csv", '1.5%'),
@@ -136,24 +136,24 @@ df.xdrate <- rbind(read.and.resid("outputs/rf_experiments/E_discountrates_1.csv"
                    ##read.and.resid("outputs/rf_experiments/E_discountrates_2.5.csv", '2.5%'),
                    ##read.and.resid("outputs/rf_experiments/E_discountrates_3.csv", '3%'),
                    read.and.resid("outputs/rf_experiments/E_discountrates_5.csv", '5%'),
-                   data.frame(yhat=NA, value=df$X2020, group='Expert + Lit.'))
+                   data.frame(yhat=NA, value=df$X2020, group='Synthetic SCC'))
 
-ggplot.draws(df.xdrate, c('Expert + Lit.', '1%', '2%', '5%'), "Discount Rate:", "figure4-drate.pdf")
+ggplot.draws(df.xdrate, c('Synthetic SCC', '1%', '2%', '5%'), "Discount Rate:", "figure4-drate.pdf")
 
 df.xpub <- rbind(read.and.resid("outputs/rf_experiments/F_pubyears_2000.csv", '2000'),
                  read.and.resid("outputs/rf_experiments/F_pubyears_2010.csv", '2010'),
                  read.and.resid("outputs/rf_experiments/F_pubyears_2020.csv", '2020'),
-                 data.frame(yhat=NA, value=df$X2020, group='Expert + Lit.'))
+                 data.frame(yhat=NA, value=df$X2020, group='Synthetic SCC'))
 
-ggplot.draws(df.xpub, c('Expert + Lit.', '2000', '2010', '2020'), "Pub. Year:", "figure4-pub.pdf")
+ggplot.draws(df.xpub, c('Synthetic SCC', '2000', '2010', '2020'), "Pub. Year:", "figure4-pub.pdf")
 
 df.xdmg <- rbind(read.and.resid("outputs/rf_experiments/H_damages_DICE2016r2.csv", 'DICE'),
                  read.and.resid("outputs/rf_experiments/H_damages_FUND38.csv", 'FUND'),
                  read.and.resid("outputs/rf_experiments/H_damages_HowardSterner.csv", 'H. & S.'),
                  read.and.resid("outputs/rf_experiments/H_damages_PAGE2009.csv", 'PAGE'),
-                 data.frame(yhat=NA, value=df$X2020, group='Expert + Lit.'))
+                 data.frame(yhat=NA, value=df$X2020, group='Synthetic SCC'))
 
-ggplot.draws(df.xdmg, c('Expert + Lit.', 'DICE', 'FUND', 'H. & S.', 'PAGE'), "Damage func.:", "figure4-dmg.pdf")
+ggplot.draws(df.xdmg, c('Synthetic SCC', 'DICE', 'FUND', 'H. & S.', 'PAGE'), "Damage func.:", "figure4-dmg.pdf")
 
 library(xtable)
 print(xtable(bigtbl), include.rownames=F)
@@ -211,8 +211,8 @@ pdf <- rbind(get.bar(0, df0$value, 'DICE'),
              get.bar(df1$value, df2$value, '+ Uncertainty'),
              get.bar(df2$value, df3$value, '+ Discounting'),
              get.bar(df3$value, df4$value, '+ Damages'),
-             get.bar(0, df4$value, '= Expert + Lit.'))
-pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Uncertainty', '+ Discounting', '+ Damages', '= Expert + Lit.'))
+             get.bar(0, df4$value, '= Synthetic SCC'))
+pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Uncertainty', '+ Discounting', '+ Damages', '= Synthetic SCC'))
 
 ggplot(pdf) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=as.numeric(label) - .5, xmax=as.numeric(label) + .5)) +
@@ -230,8 +230,8 @@ pdf <- rbind(get.bar(0, df0$value, 'DICE'),
              get.bar(df5$value, df6$value, '+ Discounting'),
              get.bar(df6$value, df7$value, '+ Structural'),
              get.bar(df7$value, df4$value, '+ Uncertainty'),
-             get.bar(0, df4$value, '= Expert + Lit.'))
-pdf$label <- factor(pdf$label, levels=c('DICE', '+ Damages', '+ Discounting', '+ Structural', '+ Uncertainty', '= Expert + Lit.'))
+             get.bar(0, df4$value, '= Synthetic SCC'))
+pdf$label <- factor(pdf$label, levels=c('DICE', '+ Damages', '+ Discounting', '+ Structural', '+ Uncertainty', '= Synthetic SCC'))
 
 ggplot(pdf) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=as.numeric(label) - .5, xmax=as.numeric(label) + .5)) +
@@ -248,8 +248,8 @@ pdf <- rbind(get.bar(0, df0$value, 'DICE'),
              get.bar(df1$value, df8$value, '+ Damages'),
              get.bar(df8$value, df9$value, '+ Discounting'),
              get.bar(df9$value, df4$value, '+ Uncertainty'),
-             get.bar(0, df4$value, '= Expert + Lit.'))
-pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Expert + Lit.'))
+             get.bar(0, df4$value, '= Synthetic SCC'))
+pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC'))
 
 ggplot(pdf) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=as.numeric(label) - .5, xmax=as.numeric(label) + .5)) +
@@ -288,9 +288,9 @@ for (cc in grep("param",names(sampdat))) {
     lastdf <- nextdf
 }
 
-pdf <- rbind(pdf, get.bar2(0, df4$value, '= Expert + Lit.'))
+pdf <- rbind(pdf, get.bar2(0, df4$value, '= Synthetic SCC'))
 
-pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Expert + Lit.'))
+pdf$label <- factor(pdf$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC'))
 
 pdf2 <- pdf
 ## pdf2$sign <- sign(pdf2$ymax - pdf2$ymin)
@@ -307,28 +307,95 @@ pdf2$xmax[pdf2$label == '+ Uncertainty'] <- 4.5 + seq(1/12, by=1/14, length.out=
 
 ggplot(pdf2) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax, fill=colour)) +
-    geom_errorbar(aes(x=(xmin + xmax) / 2, ymin=ci25, ymax=ci75), width=.1, position='dodge') +
+    geom_errorbar(aes(x=(xmin + xmax) / 2, ymin=ci25, ymax=ci75), width=.08, position='dodge') +
     geom_hline(yintercept=0) +
     scale_x_continuous(NULL, breaks=as.numeric(pdf$label), labels=pdf$label) +
+    scale_fill_manual("Components:", breaks=c(NA, "Persistent...Growth.Damages_struc", "Learning_struc", "Earth_system_struc", "Minor",
+                                                "TFP.Growth_param", "Population.Growth_param", "Emissions.Growth_param",
+                                                "Equilibrium.Climate.Sensitivity_param", "Tipping.Point.Magnitude_param", "Damage.Function_param",
+                                                "Risk.Aversion..EZ.Utility._param"),
+                        values=c("#808080", '#e31a1c', '#33a02c', '#6a3d9a', '#b15928',
+                                 '#a6cee3', '#8dd3c7', '#b2df8a',
+                                 '#cab2d6', '#ffff99', '#fb9a99',
+                                 '#fdbf6f'),
+                      labels=c('Aggregate Bars', 'Persistence/Growth Damages', 'Learning', 'Earth System', '\nMinor (< 10 $/t change,\nstructural or uncertainty)\n',
+                               "TFP Growth", "Population Growth", "Emissions Growth",
+                               "Equilibrium Climate Sensitivity", "Tipping Point Magnitude", "Damage Function",
+                               "Risk Aversion (EZ Utility)")) +
+    scale_x_continuous(NULL, breaks=1:6, labels=levels(pdf2$label), expand=expansion(add=.25)) +
     theme_bw() + ylab("Social cost of carbon (USD/tCO2)")
+ggsave("figures/figure4a.pdf", width=9, height=4)
+
+## Add no-residual and medians
+df4.noresid <- read.csv("outputs/rf_experiments/I_4.csv")
+names(df4.noresid) <- 'value'
+
+pdf3 <- rbind(pdf2, data.frame(ymin=0, ymax=mean(df4.noresid$value), ci25=quantile(df4.noresid$value, .25),
+                               ci75=quantile(df4.noresid$value, .75), label='- Residuals', colour=NA, xmin=7, xmax=8))
+pdf3$label <- factor(pdf3$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC', '- Residuals'))
+
+pdf3.medians <- data.frame(label=c("= Synthetic SCC", "- Residuals"), x=c(6, 7.5), med=c(median(df4$value), median(df4.noresid$value)))
+
+ggplot(pdf3) +
+    geom_rect(aes(ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax, fill=colour)) +
+    geom_errorbar(aes(x=(xmin + xmax) / 2, ymin=ci25, ymax=ci75), width=.08) +
+    geom_point(data=pdf3.medians, aes(x=x, y=med)) +
+    geom_hline(yintercept=0) +
+    scale_x_continuous(NULL, breaks=as.numeric(pdf$label), labels=pdf$label) +
+    scale_fill_manual("Components:", breaks=c(NA, "Persistent...Growth.Damages_struc", "Learning_struc", "Earth_system_struc", "Minor",
+                                                "TFP.Growth_param", "Population.Growth_param", "Emissions.Growth_param",
+                                                "Equilibrium.Climate.Sensitivity_param", "Tipping.Point.Magnitude_param", "Damage.Function_param",
+                                                "Risk.Aversion..EZ.Utility._param"),
+                        values=c("#808080", '#e31a1c', '#33a02c', '#6a3d9a', '#b15928',
+                                 '#a6cee3', '#8dd3c7', '#b2df8a',
+                                 '#cab2d6', '#ffff99', '#fb9a99',
+                                 '#fdbf6f'),
+                      labels=c('Aggregate Bars', 'Persistence/Growth Damages', 'Learning', 'Earth System', '\nMinor (< 10 $/t change,\nstructural or uncertainty)\n',
+                               "TFP Growth", "Population Growth", "Emissions Growth",
+                               "Equilibrium Climate Sensitivity", "Tipping Point Magnitude", "Damage Function",
+                               "Risk Aversion (EZ Utility)")) +
+    scale_x_continuous(NULL, breaks=c(1:6, 7.5), labels=levels(pdf3$label), expand=expansion(add=.25)) +
+    theme_bw() + ylab("Social cost of carbon (USD/tCO2)")
+ggsave("figures/figure4a.pdf", width=10, height=4)
 
 df3.sum.x <- df3.sum
 names(df3.sum.x)[2] <- 'mu'
 
-pdfextra <- rbind(cbind(df.xdmg %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75)), label="Alternative\nDamages"),
-                  cbind(df.xdrate %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75)), label="Alternative\nDiscounting"),
-                  cbind(df3.sum.x[, 1:4], label="Alternative\nPulse Years"))
+pdfextra <- rbind(cbind(df.xstruct2 %>% filter(!(group %in% c('DICE', 'EPA', 'All'))) %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nStructural\nSets"),
+                  cbind(df.xdmg %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nDamages"),
+                  cbind(df.xdrate %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nDiscounting"),
+                  cbind(df3.sum.x[, 1:5], label="Alternative\nPulse Years"))
+pdfextra$group[pdfextra$group == "Synthetic SCC"] <- "Synthetic\nSCC"
+pdfextra$group <- factor(pdfextra$group, c('Synthetic\nSCC', 'None', 'EPA', 'All', pdfextra$group[!(pdfextra$group %in% c('Synthetic\nSCC', 'None', 'EPA', 'All'))]))
+pdfextra$label <- gsub("\n", " ", pdfextra$label)
+pdfextra$label <- factor(pdfextra$label, c("Alternative Structural Sets", "Alternative Damages", "Alternative Discounting", "Alternative Pulse Years"))
 
-pdf2$label <- factor(pdf2$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Expert + Lit.', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years'))
-pdfextra$label <- factor(pdfextra$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Expert + Lit.', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years'))
-pdfextra <- subset(pdfextra, !(group %in% c("Expert + Lit.", "DICE", "FUND", "2020")))
+ggplot(pdfextra, aes(x=group, y=mu)) +
+    facet_wrap(~ label, scales='free_x', nrow=1) +
+    geom_bar(stat='identity', alpha=.75) +
+    geom_errorbar(aes(ymin=ci25, ymax=ci75), width=.25) +
+    geom_point(aes(y=med)) +
+    geom_hline(yintercept=mean(df4$value)) +
+    theme_bw() + ylab("Social cost of carbon (USD/tCO2)") + xlab(NULL)
+ggsave("figures/figure4b.pdf", width=10, height=4)
+
+pdf2$label <- factor(pdf2$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years', 'Expert\nSurvey'))
+pdfextra$label <- factor(pdfextra$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years', 'Expert\nSurvey'))
+pdfextra <- subset(pdfextra, !(group %in% c("Synthetic SCC", "FUND")))
+pdfextra$x <- pdf2$xmax[nrow(pdf2)] + c(.2, .5, .8, 1.2, 1.5, 1.8, 2.2, 2.5, 2.8)
+
 
 ggplot(pdf2) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax, fill=colour, colour=colour)) +
     geom_errorbar(aes(x=(xmin + xmax) / 2, ymin=ci25, ymax=ci75), width=.1) +
     geom_segment(aes(x=pdf2$xmax[nrow(pdf2)] + .05, y=pdf2$ymax[nrow(pdf2)],
-                     xend=as.numeric(pdfextra$label[nrow(pdfextra)]) + .5, yend=pdf2$ymax[nrow(pdf2)])) +
-    geom_label(data=pdfextra, aes(x=as.numeric(label), y=mu, label=group)) +
+                     xend=as.numeric(pdfextra$label[nrow(pdfextra)]) + .85, yend=pdf2$ymax[nrow(pdf2)]), alpha=.01) +
+    geom_rect(data=pdfextra, aes(ymin=0, ymax=mu, xmin=x-.1 + .25, xmax=x+.1 + .25, fill=NA, colour=NA)) +
+    geom_errorbar(data=pdfextra, aes(x=x + .25, ymin=ci25, ymax=ci75), width=.1) +
+    geom_label(data=pdfextra, aes(x=x + .25, y=mu + 40, label=group), size=2.5) +
+    geom_rect(data=pdfextra2, aes(ymin=0, ymax=mu, xmin=x-.2 + .5, xmax=x+.2 + .5, fill=NA, colour=NA)) +
+    geom_errorbar(data=pdfextra2, aes(x=x + .5, ymin=ci25, ymax=ci75), width=.1) +
+    geom_label(data=pdfextra2, aes(x=x + .5, y=mu + 40, label=group), size=2.5) +
     geom_hline(yintercept=0) +
     scale_fill_manual("Components:", breaks=c(NA, "Persistent...Growth.Damages_struc", "Learning_struc", "Earth_system_struc", "Minor",
                                                 "TFP.Growth_param", "Population.Growth_param", "Emissions.Growth_param",
@@ -354,5 +421,6 @@ ggplot(pdf2) +
                                "TFP Growth", "Population Growth", "Emissions Growth",
                                "Equilibrium Climate Sensitivity", "Tipping Point Magnitude", "Damage Function",
                                "Risk Aversion (EZ Utility)")) +
-    scale_x_continuous(NULL, breaks=1:length(levels(pdf2$label)), labels=levels(pdf2$label)) +
+    scale_x_continuous(NULL, breaks=c(1:6, (7:9)+.25, 10+.5), labels=levels(pdf2$label), expand=expansion(add=.25)) +
     theme_bw() + ylab("Social cost of carbon (USD/tCO2)")
+ggsave("
