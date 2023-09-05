@@ -14,6 +14,9 @@ dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
+#drop outlier Nordhaus row
+todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
+if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
 
 #make plot of distribution taking out different sources of varition
 #1. take out means
@@ -46,10 +49,6 @@ a=a+geom_segment(data=quants%>%filter(probs==0.5),x=c(0.75,1.75,2.75),xend=c(1.2
 a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(text=element_text(size=18))
 
 #full distribution
-
-#drop outlier Nordhaus row
-todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
-if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
 
 dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
@@ -110,7 +109,7 @@ a=a+geom_point(data=iwgdist_summary, aes(x=y, y=mu))
 eparuns=list.files("outputs/epa_scc",full.names = TRUE) #2020 distribution of co2 for 3 damage functions
 epa=fread(eparuns[2]);epa=filter(epa,sector=="total")$scghg
 epa=append(epa,fread(eparuns[1])$scghg);epa=append(epa,fread(eparuns[3])$scghg)
-epa=data.frame(draw=epa,yeargroup=2010-2030)
+epa=data.frame(draw=epa,yeargroup="2010-2030")
 epa_summary=epa%>%summarize_at(vars(draw),funs(!!!pfuns))
 colnames(epa_summary)=c("lowest","min","lower","middle","upper","max","highest", "mu")
 epa_summary$y=-0.025;epa_summary$yeargroup="2010-2030"
