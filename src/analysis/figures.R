@@ -18,6 +18,16 @@ source("src/data_cleaining_scripts/cleaning_master.R")
 todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
 if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
 
+#add year information
+dist$year=as.numeric(dat$`SCC Year`[dist$row])
+dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
+dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
+
+distplot=dist
+distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.006)
+distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))
+
+
 #make plot of distribution taking out different sources of varition
 #1. take out means
 dist_demeaned=dist$draw-mean(dist$draw)
@@ -50,13 +60,6 @@ a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(te
 
 #full distribution
 
-dist$year=as.numeric(dat$`SCC Year`[dist$row])
-dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
-dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
-
-distplot=dist
-distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.006)
-distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))
 
 quants=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
 truncmean=function(data,trim=0.001){
