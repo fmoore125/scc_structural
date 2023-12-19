@@ -3,7 +3,7 @@
 library(lfe)
 library(MASS)
 
-do.bagging <- 'none'
+do.bagging <- 'ones'
 
 source("src/analysis/multivariate_prep.R")
 
@@ -159,7 +159,6 @@ for (ii in 1:nrow(dat)) {
 
 quantile(distreg$draw, na.rm=T)
 mean(distreg$draw, na.rm=T)
-
 
 if (do.bagging == 'none') {
     distreg$draw.post[distreg$draw.post < quantile(distreg$draw.post, .005) | distreg$draw.post > quantile(distreg$draw.post, .995)] <- NA

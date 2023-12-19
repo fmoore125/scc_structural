@@ -363,8 +363,8 @@ names(df3.sum.x)[2] <- 'mu'
 
 pdfextra <- rbind(cbind(df.xstruct2 %>% filter(!(group %in% c('DICE', 'EPA', 'All'))) %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nStructural\nSets"),
                   cbind(df.xdmg %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nDamages"),
-                  cbind(df.xdrate %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nDiscounting"),
-                  cbind(df3.sum.x[, 1:5], label="Alternative\nPulse Years"))
+                  cbind(df.xdrate %>% group_by(group) %>% summarize(mu=mean(value), ci25=quantile(value, .25), ci75=quantile(value, .75), med=median(value)), label="Alternative\nDiscounting"))
+                                        #cbind(df3.sum.x[, 1:5], label="Alternative\nPulse Years"))
 pdfextra$group[pdfextra$group == "Synthetic SCC"] <- "Synthetic\nSCC"
 pdfextra$group <- factor(pdfextra$group, c('Synthetic\nSCC', 'None', 'EPA', 'All', pdfextra$group[!(pdfextra$group %in% c('Synthetic\nSCC', 'None', 'EPA', 'All'))]))
 pdfextra$label <- gsub("\n", " ", pdfextra$label)
@@ -377,7 +377,7 @@ ggplot(pdfextra, aes(x=group, y=mu)) +
     geom_point(aes(y=med)) +
     geom_hline(yintercept=mean(df4$value)) +
     theme_bw() + ylab("Social cost of carbon (USD/tCO2)") + xlab(NULL)
-ggsave("figures/figure4b.pdf", width=10, height=4)
+ggsave("figures/figure4b.pdf", width=10, height=3)
 
 pdf2$label <- factor(pdf2$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years', 'Expert\nSurvey'))
 pdfextra$label <- factor(pdfextra$label, levels=c('DICE', '+ Structural', '+ Damages', '+ Discounting', '+ Uncertainty', '= Synthetic SCC', 'Alternative\nDamages', 'Alternative\nDiscounting', 'Alternative\nPulse Years', 'Expert\nSurvey'))
