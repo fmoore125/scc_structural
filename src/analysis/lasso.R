@@ -210,11 +210,14 @@ if (do.forcepreds) {
     distreg$logdraw.post <- NA
     for (row1 in seq(1, nrow(preddf), by=1e4)) {
         print(row1)
-        resls <- predict.felm(lassomod, preddf[row1 - 1 + (1:1e4),], se.fit=T)
-        distreg$logdraw.post[row1 - 1 + (1:1e4)] <- rnorm(nrow(resls$fit), resls$fit$fit, resls$se.fit)
+        rowN <- min(row1 - 1 + 1e4, nrow(preddf))
+        resls <- predict.felm(lassomod, preddf[row1:rowN,], se.fit=T)
+        distreg$logdraw.post[row1:rowN] <- rnorm(nrow(resls$fit), resls$fit$fit, resls$se.fit)
     }
 
     distreg$draw.post <- exp(dat2$effect[distreg$row] + distreg$logdraw.post + var(lassomod$resid)[1, 1] / 2)
+
+    distreg$draw.post[distreg$draw.post < quantile(distreg$draw.post, .005, na.rm=T) | distreg$draw.post > quantile(distreg$draw.post, .995, na.rm=T)] <- NA
 
     ggplot(distreg) +
         geom_density(aes(x=draw, colour='Original')) +
@@ -223,8 +226,6 @@ if (do.forcepreds) {
         scale_y_continuous(expand=c(0, 0)) +
         scale_colour_discrete(NULL) +
         theme_bw() + theme(legend.justification=c(1,1), legend.position=c(1,1))
-
-    distreg$draw.post[distreg$draw.post < quantile(distreg$draw.post, .005, na.rm=T) | distreg$draw.post > quantile(distreg$draw.post, .995, na.rm=T)] <- NA
 
     quantile(distreg$draw.post, na.rm=T)
     mean(distreg$draw.post, na.rm=T)
