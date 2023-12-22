@@ -43,10 +43,11 @@ for (ii in 1:nrow(dat)) {
 }
 dat$ID_number=as.integer(dat$ID_number)
 papers=unique(dat$ID_number)
+papers=papers[-which(papers==2913)] #temporarily remove problematic row
 
-#set both to false for unweighted distribution, set one to false and the other to true for
+#set both to false for unweighted distribution, set one to false and the other to true for either citation or coauthor weighting
 weighting_coauthors=FALSE
-weighting_citations=TRUE
+weighting_citations=FALSE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -61,7 +62,7 @@ for(i in 1:nsamp){
 
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
-  if(paper==2883) rows=rows[-which(rows%in%c(1211,1216))] #remove two problematic rows temporarily
+  if(paper==1998) rows=rows[-which(rows==274)] #remove two problematic rows temporarily
   row=ifelse(length(rows)==1,rows,sample(rows,1))
 
   draw=sample(dists[[row]],1)
@@ -69,7 +70,7 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2.csv")
+if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2_Dec2023.csv")
 if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted_v2.csv")
 if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted_v2.csv")
 
