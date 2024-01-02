@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggridges)
+library(patchwork)
 
 dist=fread(file="outputs/distribution_v2_Dec2023.csv")
 
@@ -14,6 +15,15 @@ dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$dr=as.numeric(dat$discountrate[dist$row])
 dist$pubyear=as.numeric(dat$Year[dist$row])
 dist$damages=dat$`Damage Function Info: Model, Commonly-Used Function, or Function`[dist$row]
+
+#visualize distributions for 2010-2030, 2030-2070, 2070-2100
+dist$yeargroup=cut(dist$year,breaks=c(2009,2030,2070,2101),labels=c("2010-2030","2031-2070","2071-2100"))
+
+a1=ggplot(dist%>%filter(complete.cases(dist$yeargroup)))+geom_density(aes(group=yeargroup,lty=yeargroup,x=draw),adjust=3,lwd=0.75)
+a1=a1+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(-50,seq(0,175,by=25),seq(250,450,by=50),seq(600, 1100, by=100)), limits=c(-100,1100), expand=c(0, 0))
+a1=a1+theme_bw()
+a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text.y = element_blank(),axis.ticks.y=element_blank())
+a1=a1+labs(y="",x="SCC ($ per ton CO2)")+scale_linetype_manual(values=1:3,name="")
 
 #retain 2010-2030 values as 2020 equivalent SCC
 distplot=dist[which(dist$year%in%c(2010:2030)),]
@@ -129,7 +139,7 @@ paperstot=data.frame(group="Full Distribution",npapers=length(unique(distplot$pa
 papersfull=rbind(paperstot, papers_dr[1:2,],papers_pubyear[1:3,],papers_damagegroup,papers_ref,papers)
 
 
-#Figure 1a
+#Figure 1b
 
 a=ggplot(densities)+coord_flip()+theme_bw()
 a=a+geom_boxplot(aes(x=group,min=min,lower=lower,middle=middle,upper=upper,max=max,col=group),inherit.aes=FALSE,stat="identity")
@@ -139,12 +149,12 @@ a=a+geom_point(aes(x=group,y=mu,col=group))
 a=a+annotate("text",x=c(19.4,17.5,13,2.5),y=1000,label=c("Discount\nRate","Publication\nYear","Damages","Model\nStructure"))
 a=a+geom_vline(xintercept=c(20.5,18.5,15.5,10.5))
 a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2009"="#fbb4b9","2010-2015"="#f768a1","2016-2021"="#7a0177","DICE"='#fed976',"FUND"='#feb24c',"PAGE"='#fd8d3c',"HowardSterner"='#f03b20',"Weitzman"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000"))
-a=a+theme(legend.position = "none",text=element_text(size=18),strip.background =element_rect(fill="white"))
+a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"))
 a=a+labs(x="",y="2010-2030 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
 pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=8.5)
-a
+a1+a+plot_layout(nrow=2,heights=c(1,5))
 dev.off()
 
 #Figure 1b - Variance Decomposition
