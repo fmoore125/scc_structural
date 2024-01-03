@@ -35,6 +35,7 @@ dev.off()
 
 #Figure 2b - barplot of the SCC wedge
 data_barplots <- read_csv2("data/expert_survey/data_SCCwedge.csv")
+data_barplots%<>% filter(complete.cases(.))
 data_barplots=data_barplots[,-c(19,20)]
 data_barplots %<>% filter(rowSums(is.na(.)) != ncol(.))
 
@@ -75,17 +76,16 @@ data_barplots_2b$Subject <- 1:nrow(data_barplots_2b)
 data_barplots_2b$"True SCC" <- data_barplots_2b$`SCC Wedge Value` + data_barplots_2b$"Literature SCC"
 
 data_mean_pos <- data_barplots_2b  %>%
-  filter(`SCC Wedge Value` > 0) %>%
-  colMeans(na.rm=T) %>%
+  colMeans() %>%
   round(0) %>% #change to 1 for version b
   data.frame() %>%
   t() %>%
   as.data.frame()
 
-data_mean_pos_long <- pivot_longer(data_mean_pos, cols = -Subject, names_to = "name", values_to = "value")
+data_mean_all_long <- pivot_longer(data_mean_pos, cols = -Subject, names_to = "name", values_to = "value")
 
 # Make grouping variable
-data_mean_pos_long %<>% 
+data_mean_all_long %<>% 
   mutate(group = case_when(name == "Earth System" | name == "Climate Tipping Points" ~ "Earth System Structural Changes",
                            name == "Damages Tipping Points" | name == "Growth Damages" ~ "Climate Damage Structural Changes",
                            name == "Limited Substitutability" | name == "Distributional Weights" | name == "Epstein-Zin" | name == "Model Uncertainty" ~ "Utility Function Structural Changes",
@@ -99,14 +99,14 @@ data_mean_pos_long %<>%
                            name == "Literature SCC" ~ "Literature SCC"))
 
 # make factors
-data_mean_pos_long$Subject %<>% factor()
-data_mean_pos_long$name %<>% factor()
-data_mean_pos_long$name %<>% factor(levels = c(names(data_barplots_2b)[c(1:4, 6, 5, 7:18)], "True SCC"))
-data_mean_pos_long$group %<>% factor()
-data_mean_pos_long$group %<>% factor(levels = levels(data_mean_pos_long$group)[c(4, 1, 8, 7, 3, 2, 6, 5)])
+data_mean_all_long$Subject %<>% factor()
+data_mean_all_long$name %<>% factor()
+data_mean_all_long$name %<>% factor(levels = c(names(data_barplots_2b)[c(1:4, 6, 5, 7:18)], "True SCC"))
+data_mean_all_long$group %<>% factor()
+data_mean_all_long$group %<>% factor(levels = levels(data_mean_all_long$group)[c(4, 1, 8, 7, 3, 2, 6, 5)])
 
 
-data_mean_pos_long_pos <- data_mean_pos_long %>%
+data_mean_all_long_pos <- data_mean_all_long %>%
   filter(!is.na(group)) %>%
   group_by(Subject) %>%
   filter(value > 0 | name == "Literature SCC") %>%
@@ -119,7 +119,7 @@ data_mean_pos_long_pos <- data_mean_pos_long %>%
   select(c("Subject", "name", "position"))
 
 
-data_mean_pos_long_neg <- data_mean_pos_long %>%
+data_mean_all_long_neg <- data_mean_all_long %>%
   filter(!is.na(group)) %>%
   group_by(Subject) %>%
   filter(value < 0 | name == "Literature SCC") %>%
@@ -130,11 +130,11 @@ data_mean_pos_long_neg <- data_mean_pos_long %>%
   mutate(position = position - 0.5*value) %>%
   select(c("Subject", "name", "position"))
 
-data_mean_pos_long %<>% 
-  left_join(data_mean_pos_long_pos, by = c("Subject", "name")) %>%
-  left_join(data_mean_pos_long_neg, by = c("Subject", "name"))
+data_mean_all_long %<>% 
+  left_join(data_mean_all_long_pos, by = c("Subject", "name")) %>%
+  left_join(data_mean_all_long_neg, by = c("Subject", "name"))
 
-data_mean_pos_long %<>%
+data_mean_all_long %<>%
   mutate(position = coalesce(position.x, position.y)) 
 
 # Set color palette
@@ -147,7 +147,7 @@ cols <- c(brewer.pal(5, "BrBG")[c(1,2)],
           "lightgray",
           "black")
 
-barplot_mean_pos <- data_mean_pos_long %>%
+barplot_mean_all <- data_mean_all_long %>%
   filter(!is.na(group)) %>%
   filter(name != "Literature SCC") %>%
   ggplot(aes(x = Subject)) +
@@ -155,27 +155,27 @@ barplot_mean_pos <- data_mean_pos_long %>%
   labs(y = "2020 SCC (in 2020 US$)", x = element_blank()) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), axis.text = element_text(size = 10)) +
   geom_tile(aes(y = position, height = value, fill = name), width = 0.4) +
-  geom_segment(data = filter(data_mean_pos_long, name == "Literature SCC"), 
+  geom_segment(data = filter(data_mean_all_long, name == "Literature SCC"), 
                aes(y = value, yend = value, x = 0.5, xend = 1.17), linetype = "dashed", color = "gray") +
-  geom_segment(data = filter(data_mean_pos_long, name == "True SCC"), 
+  geom_segment(data = filter(data_mean_all_long, name == "True SCC"), 
                aes(y = value, yend = value, x = 0.5, xend = 1.17), linetype = "dashed", color = "gray") +
-  geom_point(data = filter(data_mean_pos_long, name == "Literature SCC"), aes(y = value, x = 1.17), shape = 21, color = "white", fill = "black", size = 4) +
-  geom_point(data = filter(data_mean_pos_long, name == "True SCC"), aes(y = value, x = 1.17), shape = 24, color =  "white", fill = "black", size = 4) +
+  geom_point(data = filter(data_mean_all_long, name == "Literature SCC"), aes(y = value, x = 1.17), shape = 21, color = "white", fill = "black", size = 4) +
+  geom_point(data = filter(data_mean_all_long, name == "True SCC"), aes(y = value, x = 1.17), shape = 24, color =  "white", fill = "black", size = 4) +
   scale_fill_manual(values=cols) +
   theme(legend.position = "none") +
   # geom_segment(data = filter(Lit_True_df_all, Subject == 24), aes(x = Subject, xend = Subject, y = value.x, yend = value.y)) +
   geom_text_repel(aes(x = 1.3, y = position, label = name), hjust = 0, force_pull = 1, force = 0.0003) +
   geom_label_repel(aes(x = Subject, y = position, label = value), label.size = 0, force_pull = 1, force = 0.0003) +
-  geom_text_repel(data = filter(data_mean_pos_long, name == "Literature SCC"), aes(y = value, x = 1.17, label = "Central literature SCC estimate"), 
+  geom_text_repel(data = filter(data_mean_all_long, name == "Literature SCC"), aes(y = value, x = 1.17, label = "Central literature SCC estimate"), 
                   fontface = "italic", nudge_y = 5,  nudge_x = .13, hjust = 0) + 
-  geom_text_repel(data = filter(data_mean_pos_long, name == "True SCC"), aes(y = value, x = 1.17, label = "Central \"true\" SCC estimate"), 
+  geom_text_repel(data = filter(data_mean_all_long, name == "True SCC"), aes(y = value, x = 1.17, label = "Central \"true\" SCC estimate"), 
                   fontface = "italic", nudge_x = .13, nudge_y = -5, hjust = 0) +
-  #scale_y_continuous(breaks = c(50, filter(data_mean_pos_long, name == "Literature SCC")$value, 75, 100, 125, 150, filter(data_mean_pos_long, name == "True SCC")$value),
+  #scale_y_continuous(breaks = c(50, filter(data_mean_all_long, name == "Literature SCC")$value, 75, 100, 125, 150, filter(data_mean_all_long, name == "True SCC")$value),
   #                   minor_breaks = seq(from = 50, to = 165, by = 12.5)) +
-  annotate("text", x = .465, y = filter(data_mean_pos_long, name == "Literature SCC")$value, 
-           label = filter(data_mean_pos_long, name == "Literature SCC")$value, hjust = 1, size = 3.5, fontface= "italic", color = "#4d4d4d") +
-  annotate("text", x = .465, y = filter(data_mean_pos_long, name == "True SCC")$value, 
-           label = filter(data_mean_pos_long, name == "True SCC")$value, hjust = 1, size = 3.5, fontface= "italic", color = "#4d4d4d") +
+  annotate("text", x = .465, y = filter(data_mean_all_long, name == "Literature SCC")$value, 
+           label = filter(data_mean_all_long, name == "Literature SCC")$value, hjust = 1, size = 3.5, fontface= "italic", color = "#4d4d4d") +
+  annotate("text", x = .465, y = filter(data_mean_all_long, name == "True SCC")$value, 
+           label = filter(data_mean_all_long, name == "True SCC")$value, hjust = 1, size = 3.5, fontface= "italic", color = "#4d4d4d") +
   coord_cartesian(xlim = c(1.1, 2.1), clip = "off")
 
 
