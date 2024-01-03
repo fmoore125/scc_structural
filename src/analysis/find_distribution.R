@@ -55,7 +55,7 @@ allow.mixed <- F
 
 is.one.value <- function(mu, qs, as)
 (!is.na(mu) && (length(qs) == 0 || all(mu == as))) || (length(qs) == 1 && (is.na(mu) || mu == as)) ||
-    ((is.na(mu) || mu == as[1]) && min(qs) == 0 && max(qs) == 1 && diff(as) == 0)
+    ((is.na(mu) || mu == as[1]) && min(qs) == 0 && max(qs) == 1 && diff(range(as)) == 0)
 
 is.two.values <- function(mu, qs, as) {
     if (length(qs) == 2 && any(qs == 0) && any(qs == 1))
