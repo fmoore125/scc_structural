@@ -2,7 +2,7 @@ library(tidyverse)
 library(ggridges)
 library(patchwork)
 
-dist=fread(file="outputs/distribution_v2_Dec2023.csv")
+dist=fread(file="outputs/distribution_v2_Jan2024.csv")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 
@@ -15,15 +15,16 @@ dist$year=as.numeric(dat$`SCC Year`[dist$row])
 dist$dr=as.numeric(dat$discountrate[dist$row])
 dist$pubyear=as.numeric(dat$Year[dist$row])
 dist$damages=dat$`Damage Function Info: Model, Commonly-Used Function, or Function`[dist$row]
+dist$damages[which(is.na(dist$damages))]=as.character(dat$`Base IAM (if applicable)`[dist$row[which(is.na(dist$damages))]])
 
 #visualize distributions for 2010-2030, 2030-2070, 2070-2100
 dist$yeargroup=cut(dist$year,breaks=c(2009,2030,2070,2101),labels=c("2010-2030","2031-2070","2071-2100"))
 
-a1=ggplot(dist%>%filter(complete.cases(dist$yeargroup)))+geom_density(aes(group=yeargroup,lty=yeargroup,x=draw),adjust=3,lwd=0.75)
+a1=ggplot(dist%>%filter(complete.cases(dist$yeargroup)&dist$yeargroup=="2010-2030"))+geom_density(aes(group=yeargroup,x=draw),adjust=3,lwd=0.75)
 a1=a1+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(-50,seq(0,175,by=25),seq(250,450,by=50),seq(600, 1100, by=100)), limits=c(-100,1100), expand=c(0, 0))
 a1=a1+theme_bw()
-a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text.y = element_blank(),axis.ticks.y=element_blank())
-a1=a1+labs(y="",x="SCC ($ per ton CO2)")+scale_linetype_manual(values=1:3,name="")
+a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text = element_blank(),axis.ticks=element_blank(), plot.margin = unit(c(1,1,0,1), "cm")) 
+a1=a1+labs(y="",x="")
 
 #retain 2010-2030 values as 2020 equivalent SCC
 distplot=dist[which(dist$year%in%c(2010:2030)),]
@@ -31,6 +32,7 @@ distplot=dist[which(dist$year%in%c(2010:2030)),]
 #create DR and pub year groups
 distplot$drgroup=cut(distplot$dr,breaks=c(0,2.5,12),na.rm=T,labels=c("<2.5",">=2.5"))
 distplot$pubyeargroup=cut(distplot$pubyear,breaks=c(2000,2009,2016,2022),labels=c("2000-2009","2010-2015","2016-2021"))
+#integrate some missing damage function info from Base IAM column
 #simplify damages
 distplot$damages=as.factor(distplot$damages)
 distplot$damages=fct_collapse(distplot$damages,DICE=levels(distplot$damages)[c(grep("DICE",levels(distplot$damages)),grep("RICE",levels(distplot$damages)))],FUND=levels(distplot$damages)[grep("FUND",levels(distplot$damages))],PAGE=levels(distplot$damages)[grep("PAGE",levels(distplot$damages))])
@@ -149,12 +151,12 @@ a=a+geom_point(aes(x=group,y=mu,col=group))
 a=a+annotate("text",x=c(19.4,17.5,13,2.5),y=1000,label=c("Discount\nRate","Publication\nYear","Damages","Model\nStructure"))
 a=a+geom_vline(xintercept=c(20.5,18.5,15.5,10.5))
 a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2009"="#fbb4b9","2010-2015"="#f768a1","2016-2021"="#7a0177","DICE"='#fed976',"FUND"='#feb24c',"PAGE"='#fd8d3c',"HowardSterner"='#f03b20',"Weitzman"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000"))
-a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"))
+a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"))
 a=a+labs(x="",y="2010-2030 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
 pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=8.5)
-a1+a+plot_layout(nrow=2,heights=c(1,5))
+a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.5,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
 
 #Figure 1b - Variance Decomposition
