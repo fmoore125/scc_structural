@@ -32,6 +32,8 @@ dists=list()
 for (ii in 1:nrow(dat)) {
   print(ii)
   all.as <- t(dat[ii, all.as.cols])
+  #add a minimum quantile value for some PAGE values to prevent fitting algorithm from producing spurious negative values
+  if(dat$`Damage Function Info: Model, Commonly-Used Function, or Function`[ii]%in%c("PAGE2009","PAGE2002")&sum(is.na(all.as[1:2]))==2){ all.as[2]=0}
   qs <- all.qs[!is.na(all.as)]
   as <- all.as[!is.na(all.as)]
   mu <- dat$`Central Value ($ per ton CO2)`[ii]
@@ -70,7 +72,7 @@ for(i in 1:nsamp){
 }
 
 colnames(dist)=c("draw","row")
-if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2_Dec2023.csv")
+if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2_Jan2024.csv")
 if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted_v2.csv")
 if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted_v2.csv")
 
