@@ -8,6 +8,7 @@ library(patchwork)
 dat=read.csv("data/expert_survey/data_SCC-expert-survey_final_anonymous.csv")
 
 fig3dat=dat%>%
+  filter(!is.na(SCCwedge_Drivers_earth_system))%>% #only show subset of respondents that provide breakdown for SCC wedge
   select(contains(c("SCC_Lit","SCC_True_","Interview.number")))%>%
   pivot_longer(!"Interview.number..ongoing.")%>%
   mutate(type=substr(name,5,7))%>%
@@ -20,15 +21,15 @@ colnames(fig3dat)[1]="id"
 #create jittered x variable
 fig3dat$xj=jitter(as.numeric(as.factor(fig3dat$type)),amount=0.1)
 
-b=ggplot(fig3dat)
-b=b+geom_violinhalf(data=fig3dat%>%filter(type=="Tru"),aes(x=type,y=central),position=position_nudge(0.17),fill="#FF495C")
-b=b+geom_violinhalf(data=fig3dat%>%filter(type=="Lit"),aes(x=type,y=central),position=position_nudge(-0.17),fill="#E5E059",flip=TRUE)
-b=b+theme_classic()+scale_x_discrete(labels=c("Lit"="Literature","Tru"="Comprehensive"))+theme(text=element_text(size=12))
-b=b+labs(x="",y="2020 SCC ($ per ton CO2)")+scale_fill_manual(values=c("#E5E059","#FF495C"),guide="none")
-b=b+geom_segment(data=pivot_wider(fig3dat,id_cols=id,names_from=type,values_from = c(central,xj)),aes(x=xj_Lit,xend=xj_Tru,y=central_Lit,yend=central_Tru),col="grey50",lwd=0.4)
-b=b+scale_y_continuous(limits=c(-10,1100))+expand_limits(x=c(0.25,2.7))
-b=b+geom_point(aes(x=xj,y=central,fill=type),size=2,pch=21,col="black")
-b=b+geom_point(data=fig3dat%>%group_by(type)%>%dplyr::summarise(mean=mean(central)),aes(x=type,y=mean,shape=type),fill="black",size=3,pch=c(15,17))
+b=ggplot(fig3dat)+
+  geom_violinhalf(data=fig3dat%>%filter(type=="Tru"),aes(x=type,y=central),position=position_nudge(0.17),fill="#FF495C")+
+  geom_violinhalf(data=fig3dat%>%filter(type=="Lit"),aes(x=type,y=central),position=position_nudge(-0.17),fill="#E5E059",flip=TRUE)+
+  theme_classic()+scale_x_discrete(labels=c("Lit"="Literature","Tru"="Comprehensive"))+theme(text=element_text(size=12))+
+  labs(x="",y="2020 SCC ($ per ton CO2)")+scale_fill_manual(values=c("#E5E059","#FF495C"),guide="none")+
+  geom_segment(data=pivot_wider(fig3dat,id_cols=id,names_from=type,values_from = c(central,xj)),aes(x=xj_Lit,xend=xj_Tru,y=central_Lit,yend=central_Tru),col="grey50",lwd=0.4)+
+  scale_y_continuous(limits=c(-10,500))+expand_limits(x=c(0.25,2.7))+
+  geom_point(aes(x=xj,y=central,fill=type),size=2,pch=21,col="black")+
+  geom_point(data=fig3dat%>%group_by(type)%>%dplyr::summarise(mean=mean(central)),aes(x=type,y=mean,shape=type),fill="black",size=3,pch=c(15,17))
 
 
 

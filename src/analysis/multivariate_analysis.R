@@ -10,7 +10,7 @@ library(lfe)
 library(patchwork)
 library(MetBrewer)
 
-dist=fread(file="outputs/distribution_v2.csv")
+dist=fread(file="outputs/distribution_v2_Jan2024.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/damage_funcs_lib.R")
 
