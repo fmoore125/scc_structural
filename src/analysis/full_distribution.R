@@ -75,7 +75,6 @@ citationweights$prob=citationweights$normalized_peryear/sum(citationweights$norm
 
 dat$ID_number=as.integer(dat$ID_number)
 papers=unique(dat$ID_number)
-papers=papers[-which(papers==2913)] #temporarily remove problematic row
 
 #set both to false for unweighted distribution, set one to false and the other to true for either citation or coauthor weighting
 weighting_coauthors=FALSE
@@ -85,7 +84,6 @@ nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
 
 for(i in 1:nsamp){
-  #if(i%in% c(1211,1216)) next
   if(i%%10000==0) print(i)
 
   if(weighting_coauthors==FALSE&weighting_citations==FALSE) paper=sample(papers,1) #if no independence weighting, sample papers with equal probability
@@ -94,7 +92,7 @@ for(i in 1:nsamp){
 
   #draw from rows for each paper
   rows=which(dat$ID_number==paper)
-  if(paper==1998) rows=rows[-which(rows==274)] #remove two problematic rows temporarily
+  #if(paper==1998) rows=rows[-which(rows==274)] #remove two problematic rows temporarily
   row=ifelse(length(rows)==1,rows,sample(rows,1))
 
   draw=sample(dists[[row]],1)
