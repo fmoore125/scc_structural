@@ -16,6 +16,7 @@ dist$dr=as.numeric(dat$discountrate[dist$row])
 dist$pubyear=as.numeric(dat$Year[dist$row])
 dist$damages=dat$`Damage Function Info: Model, Commonly-Used Function, or Function`[dist$row]
 dist$damages[which(is.na(dist$damages))]=as.character(dat$`Base IAM (if applicable)`[dist$row[which(is.na(dist$damages))]])
+dist$type=dat$`Empirical Improvement or Sensitvity Analysis?`[dist$row]
 
 #visualize distributions for 2010-2030, 2030-2070, 2070-2100
 dist$yeargroup=cut(dist$year,breaks=c(2009,2030,2070,2101),labels=c("2010-2030","2031-2070","2071-2100"))
@@ -31,12 +32,15 @@ distplot=dist[which(dist$year%in%c(2010:2030)),]
 
 #create DR and pub year groups
 distplot$drgroup=cut(distplot$dr,breaks=c(0,2.5,12),na.rm=T,labels=c("<2.5",">=2.5"))
-distplot$pubyeargroup=cut(distplot$pubyear,breaks=c(2000,2009,2016,2022),labels=c("2000-2009","2010-2015","2016-2021"))
+distplot$pubyeargroup=cut(distplot$pubyear,breaks=c(1999,2012,2022),labels=c("2000-2011","2012-2022"))
 #integrate some missing damage function info from Base IAM column
 #simplify damages
 distplot$damages=as.factor(distplot$damages)
 distplot$damages=fct_collapse(distplot$damages,DICE=levels(distplot$damages)[c(grep("DICE",levels(distplot$damages)),grep("RICE",levels(distplot$damages)))],FUND=levels(distplot$damages)[grep("FUND",levels(distplot$damages))],PAGE=levels(distplot$damages)[grep("PAGE",levels(distplot$damages))])
-distplot$damages=fct_recode(distplot$damages,HowardSterner="HowardSterner (0.007438*T^2)")
+distplot$damages=fct_collapse(as.factor(distplot$damages),"DICE"="DICE","FUND"="FUND","PAGE"="PAGE",other_level="Other")
+#add in paper type
+distplot$type=fct_collapse(distplot$type,"Empirical Improvement"=c("Empirical improvement","Empirical Improvement","Empriical Improvement"),"Framework Expansion"="Framework Expansion","Sensitivity Analysis"=c("Sensitivity analysis","Sensitivity Analysis"))
+distplot$type=factor(distplot$type,exclude="Other")
 
 #plot the quantiles of the distributions
 relprobs=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
@@ -68,10 +72,16 @@ colnames(summarydist_pubyear)=c("group","lowest","min","lower","middle","upper",
 #summarydist_pubyear$y=c(-0.02-0.0035*c(0:2),NA)
 
 summarydist_dam=distplot%>%
-  filter(damages%in%c("DICE","FUND","PAGE","HowardSterner","Weitzman"))%>%
   group_by(damages)%>%
   summarize_at(vars(draw),funs(!!!pfuns))
 colnames(summarydist_dam)=c("group","lowest","min","lower","middle","upper","max","highest", "mu")
+summarydist_dam=summarydist_dam[-which(is.na(summarydist_dam)),]
+
+summarydist_type=distplot%>%
+  group_by(type)%>%
+  summarize_at(vars(draw),funs(!!!pfuns))
+colnames(summarydist_type)=c("group","lowest","min","lower","middle","upper","max","highest", "mu")
+summarydist_type=summarydist_type[-which(is.na(summarydist_type)),]
 
 #get variation by model structure and reference distribution
 dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`%in%c("1.0",1),1.0,ifelse(dat$`Climate Model`%in%c("1.0",1),1.0,0)))
@@ -103,8 +113,8 @@ referencedensity=diststruc%>%
 colnames(referencedensity)=c("lowest","min","lower","middle","upper","max","highest", "mu")
 referencedensity=cbind(data.frame(group="Reference"),referencedensity)
 
-densities=rbind(summarytot,summarydist_dr,summarydist_pubyear,summarydist_dam,diststrucdensities,referencedensity)
-densities$group=factor(densities$group, levels=rev(c("Full Distribution","<2.5",">=2.5","2000-2009","2010-2015","2016-2021","DICE","FUND","PAGE","HowardSterner","Weitzman","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning","Ambiguity/Model Uncertainty")))
+densities=rbind(summarytot,referencedensity,diststrucdensities,summarydist_dr,summarydist_pubyear,summarydist_dam,summarydist_type)
+densities$group=factor(densities$group, levels=rev(c("Full Distribution","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning","Ambiguity/Model Uncertainty","<2.5",">=2.5","2000-2011","2012-2022","DICE","FUND","PAGE","Other","Empirical Improvement","Framework Expansion","Sensitivity Analysis")))
 ymin=-100;ymax=1100
 densities=densities%>%mutate(across(lowest:mu, function(x) ifelse(x<ymin,ymin,ifelse(x>ymax,ymax,x))))
 
@@ -129,17 +139,20 @@ papers_pubyear=distplot%>%
 colnames(papers_pubyear)[1]=c("group")
 
 papers_damagegroup=distplot%>%
-  filter(damages%in%c("DICE","FUND","PAGE","HowardSterner","Weitzman"))%>%
   group_by(damages)%>%
   dplyr::summarize(npapers=length(unique(paper)),n=length(unique(row)))
 colnames(papers_damagegroup)[1]=c("group")
+
+papers_type=distplot%>%
+  group_by(type)%>%
+  dplyr::summarize(npapers=length(unique(paper)),n=length(unique(row)))
+colnames(papers_type)[1]=c("group")
 
 papers_ref=data.frame(group="Reference",npapers=length(unique(distplot$paper[which(distplot$row%in%reference)])),n=length(unique(distplot$row[which(distplot$row%in%reference)])))
 
 paperstot=data.frame(group="Full Distribution",npapers=length(unique(distplot$paper)),n=length(unique(distplot$row)))
 
-papersfull=rbind(paperstot, papers_dr[1:2,],papers_pubyear[1:3,],papers_damagegroup,papers_ref,papers)
-
+papersfull=rbind(paperstot,papers_ref,papers, papers_dr[1:2,],papers_pubyear[1:2,],papers_damagegroup[1:4,],papers_type[1:3,])
 
 #Figure 1b
 
@@ -148,9 +161,9 @@ a=a+geom_boxplot(aes(x=group,min=min,lower=lower,middle=middle,upper=upper,max=m
 a=a+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(-50,seq(0,175,by=25),seq(250,450,by=50),seq(600, 1100, by=100)), limits=c(-100,1100), expand=c(0, 0))
 a=a+geom_segment(aes(x=group,xend=group,y=lowest,yend=min,col=group),lty=2)+geom_segment(aes(x=group,xend=group,y=max,yend=highest,col=group),lty=2)
 a=a+geom_point(aes(x=group,y=mu,col=group))
-a=a+annotate("text",x=c(19.4,17.5,13,2.5),y=1000,label=c("Discount\nRate","Publication\nYear","Damages","Model\nStructure"))
-a=a+geom_vline(xintercept=c(20.5,18.5,15.5,10.5))
-a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2009"="#fbb4b9","2010-2015"="#f768a1","2016-2021"="#7a0177","DICE"='#fed976',"FUND"='#feb24c',"PAGE"='#fd8d3c',"HowardSterner"='#f03b20',"Weitzman"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000"))
+a=a+annotate("text",x=c(18,10.3,8.7,5,2),y=1000,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
+a=a+geom_vline(xintercept=c(21.5,11.5,9.5,7.5,3.5))
+a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2011"="#fbb4b9","2012-2021"="#7a0177","DICE"='#fed976',"FUND"='#fd8d3c',"PAGE"='#f03b20',"Other"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000","Empirical Improvement"="#c2e699","Sensitivity Analysis"="#31a354","Framework Expansion"="#006837"))
 a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"))
 a=a+labs(x="",y="2010-2030 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
@@ -158,7 +171,5 @@ a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,
 pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=8.5)
 a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.5,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
-
-#Figure 1b - Variance Decomposition
 
 
