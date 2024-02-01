@@ -488,14 +488,14 @@ ggsave("figures/rfdists-varimport.pdf", width=6.5, height=5)
 
 idealdat <- dat # include all rows
 
-##set obvious ones
+## set obvious ones
 for (cc in which(names(dat) == 'TFP Growth'):which(names(dat) == 'Risk Aversion (EZ Utility)'))
     idealdat[, cc] <- "1"
 idealdat$`Backstop Price?` <- "0"
 idealdat$`Declining Discounting?` <- "1"
 idealdat$`Market Only Damages` <- "0"
 idealdat$`Other Market Failure?` <- "0"
-#for damage-function-based scc - draw from literature values
+## for damage-function-based scc - draw from literature values
 idealdat$log.scc.synth[idealdat$missing.scc.synth] <- sample(idealdat$log.scc.synth[!idealdat$missing.scc.synth],
                                                             sum(idealdat$missing.scc.synth),replace=TRUE)
 idealdat$Year <- 2020
@@ -515,23 +515,82 @@ names(idealdat)[names(idealdat) == 'Earth System'] <- 'Earth system'
 discountsurvey <- read.csv("data/Drupp_et_al_2018_AEJ_Constant_SDR.csv")
 idealdat$discountrate <- sample(discountsurvey$SDR[!is.na(discountsurvey$SDR)], nrow(idealdat), replace=TRUE)
 
-pdf <- data.frame()
-for (ii in sample(which(incrows))) {
-    if (ii %in% pdf$row)
-        next
-    print(ii)
-    quants.pred <- predict.forest(forest, idealdat[ii,], dist)
-    pdf <- rbind(pdf, data.frame(row=ii, quant=all.qs, pred=quants.pred))
+predict.forest.all <- function(expdat, incrows, outfile) {
+    pdf <- data.frame()
+    for (ii in sample(which(incrows))) {
+        if (ii %in% pdf$row)
+            next
+        print(ii)
+        quants.pred <- predict.forest(forest, expdat[ii,], dist)
+        pdf <- rbind(pdf, data.frame(row=ii, quant=all.qs, pred=quants.pred))
+    }
+
+    ## Construct Monte Carlo draws
+    allsamp <- c()
+    for (row in unique(pdf$row)) {
+        inv.cdf <- approx(pdf$quant[pdf$row == row], pdf$pred[pdf$row == row])
+        uu <- runif(1000)
+        samples <- inv.cdf$y[findInterval(uu, inv.cdf$x)]
+        allsamp <- c(allsamp, samples)
+    }
+
+    print(quantile(allsamp, c(0, 0.01, 0.05, 0.25, 0.5, 0.75, 0.95, 0.99, 1.)))
+    print(mean(allsamp))
+
+    save(pdf, allsamp, file=outfile)
 }
 
-## Construct Monte Carlo draws
-allsamp <- c()
-for (row in unique(pdf$row)) {
-    inv.cdf <- approx(pdf$quant[pdf$row == row], pdf$pred[pdf$row == row])
-    uu <- runif(1000)
-    samples <- inv.cdf$y[findInterval(uu, inv.cdf$x)]
-    allsamp <- c(allsamp, samples)
-}
+predict.forest.all(idealdat, incrows, "outputs/rf_experiments/RFD_best.RData")
 
-quantile(allsamp)
-mean(allsamp)
+##----A. No structural changes (classic DICE assumptions)-----
+
+## set obvious ones
+dicedat <- idealdat
+for (cc in which(names(dicedat) == 'TFP Growth'):which(names(dicedat) == 'Risk Aversion (EZ Utility)'))
+    dicedat[, cc] <- "0"
+dicedat$`Backstop Price?` <- "0"
+dicedat$`Declining Discounting?` <- "0"
+dicedat$`Market Only Damages` <- "0"
+dicedat$`Other Market Failure?` <- "0"
+
+## for damage-function-based scc - draw from literature values
+rel <- dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("DICE-2007","DICE-2013R","DICE-2016R2","DICE 2007","DICE 2010","DICE 2013","DICE 2013R","DICE 2016","DICE2007","DICE2010","DICE2013","DICE2016R")
+dicedat$log.scc.synth <- sample(dat$log.scc.synth[rel & !dat$missing.scc.synth],
+                                nrow(dat),replace=TRUE)
+
+for (cc in which(names(dicedat) == 'Ambiguity/Model Uncertainty'):which(names(dicedat) == 'Tipping Points2'))
+    dicedat[, cc] <- "0"
+
+dicedat$discountrate <- 4.6
+
+predict.forest.all(dicedat, 1:nrow(dat) %in% sample(which(incrows), 100), "outputs/rf_experiments/RFD_A_dice.RData")
+
+##----B. EPA assumptions -----
+epadat <- dicedat
+
+## structural changes to Earth System
+epadat$`Earth system` <- "1"
+## parametric uncertainty in tfp growth, pop growth, earth system and damage functions
+epadat$`TFP Growth` <- "1"
+epadat$`Population Growth` <- "1"
+epadat$`Emissions Growth` <- "1"
+epadat$`Transient Climate Response` <- "1"
+epadat$`Carbon Cycle2` <- "1"
+epadat$`Equilibrium Climate Sensitivity` <- "1"
+epadat$`Damage Function` <- "1"
+## central discount rate of 2%
+epadat$discountrate <- 2
+## damage function from Howard and Sterner
+rel <- dat$`Damage Function Info: Model, Commonly-Used Function, or Function`%in%c("HowardSterner","HowardSterner (0.007438*T^2)")
+epadat$log.scc.synth <- sample(dat$log.scc.synth[rel & !dat$missing.scc.synth],
+                               nrow(dat),replace=TRUE)
+
+predict.forest.all(epadat, 1:nrow(dat) %in% sample(which(incrows), 100), "outputs/rf_experiments/RFD_B_epa.RData")
+
+##---- C. All structural changes and no structural changes
+alldat <- idealdat
+for (cc in which(names(alldat) == 'Ambiguity/Model Uncertainty'):which(names(alldat) == 'Tipping Points2'))
+    alldat[, cc] <- "1"
+
+predict.forest.all(alldat, 1:nrow(dat) %in% sample(which(incrows), 100), "outputs/rf_experiments/RFD_C_all.RData")
+
