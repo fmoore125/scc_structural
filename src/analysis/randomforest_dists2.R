@@ -61,6 +61,9 @@ discountsurvey <- read.csv("data/Drupp_et_al_2018_AEJ_Constant_SDR.csv")
 idealdat$discountrate <- sample(discountsurvey$SDR[!is.na(discountsurvey$SDR)], nrow(idealdat), replace=TRUE)
 
 predict.forest.all(idealdat, incrows, "outputs/rf_experiments/RFD_best.RData")
+save(idealdat, file="outputs/rf_experiments/idealdat.RData")
+
+load("outputs/rf_experiments/idealdat.RData")
 
 ##----A. No structural changes (classic DICE assumptions)-----
 
@@ -108,6 +111,12 @@ epadat$log.scc.synth <- sample(dat$log.scc.synth[rel & !dat$missing.scc.synth],
 predict.forest.all(epadat, incrows, "outputs/rf_experiments/RFD_B_epa.RData")
 
 ##---- C. All structural changes and no structural changes
+nonedat <- idealdat
+for (cc in which(names(nonedat) == 'Ambiguity/Model Uncertainty'):which(names(nonedat) == 'Tipping Points2'))
+    nonedat[, cc] <- "0"
+
+predict.forest.all(nonedat, incrows, "outputs/rf_experiments/RFD_C_none.RData")
+
 alldat <- idealdat
 for (cc in which(names(alldat) == 'Ambiguity/Model Uncertainty'):which(names(alldat) == 'Tipping Points2'))
     alldat[, cc] <- "1"
@@ -170,15 +179,15 @@ structural.uncertainty <- list("Ambiguity/Model Uncertainty"=c(), "Earth system"
                                "Persistent / Growth Damages"=c(), "Tipping Points"=c("Tipping Point Magnitude"),
                                "Tipping Points2"=c("Tipping Point Magnitude"))
 
-## I1. DICE + damages
+## I1. DICE + discounting
 i1dat <- dicedat
-i1dat$log.scc.synth <- idealdat$log.scc.synth
+i1dat$discountrate <- idealdat$discountrate
+i1dat$`Declining Discounting?` <- "1"
 predict.forest.all(i1dat, incrows, "outputs/rf_experiments/RFD_I1.RData")
 
-## I2. I1 + discounting
+## I2. I1 + damages
 i2dat <- i1dat
-i2dat$discountrate <- idealdat$discountrate
-i2dat$`Declining Discounting?` <- "1"
+i2dat$log.scc.synth <- idealdat$log.scc.synth
 predict.forest.all(i2dat, incrows, "outputs/rf_experiments/RFD_I2.RData")
 
 ## I3. I2 + structural
@@ -195,15 +204,15 @@ for (cc in which(names(dicedat) == 'TFP Growth'):which(names(dicedat) == 'Risk A
     predict.forest.all(i4dat, incrows, paste0("outputs/rf_experiments/RFD_I4_", cc, ".RData"))
 }
 
-## I5. I4 - damages
+## I5. I4 - discounting
 i5dat <- i4dat
-i5dat$log.scc.synth <- dicedat$log.scc.synth
+i5dat$discountrate <- 4.6
+i5dat$`Declining Discounting?` <- "0"
 predict.forest.all(i5dat, incrows, "outputs/rf_experiments/RFD_I5.RData")
 
-## I6. I5 - discounting
+## I6. I5 - damages
 i6dat <- i5dat
-i6dat$discountrate <- 4.6
-i6dat$`Declining Discounting?` <- "0"
+i6dat$log.scc.synth <- dicedat$log.scc.synth
 predict.forest.all(i6dat, incrows, "outputs/rf_experiments/RFD_I6.RData")
 
 ## I7. I6 - structural
@@ -226,3 +235,43 @@ for (cc in which(names(dicedat) == 'TFP Growth'):which(names(dicedat) == 'Risk A
     i8dat[, cc] <- "0"
     predict.forest.all(i8dat, incrows, paste0("outputs/rf_experiments/RFD_I8_", cc, ".RData"))
 }
+
+## I9. Randomized order
+
+uncertainty.structural <- list("Carbon Cycle2"="Earth system", "Risk Aversion (EZ Utility)"="Epstein-Zin",
+                               "Tipping Point Magnitude"=c("Tipping Points", "Tipping Points2"))
+
+for (mc in 2:1000) {
+    print(c("Monte Carlo", mc))
+    jdat <- dicedat
+
+    todo <- c("Discounting", "Damages", names(dicedat)[which(names(dicedat) == 'Ambiguity/Model Uncertainty'):which(names(dicedat) == 'Tipping Points2')], names(dicedat)[which(names(dicedat) == 'TFP Growth'):which(names(dicedat) == 'Risk Aversion (EZ Utility)')])
+    sequence <- c()
+    while (length(todo) > 1) {
+        while (T) {
+            entry <- sample(todo, 1)
+            if (entry %in% names(uncertainty.structural))
+                if (all(uncertainty.structural[[entry]] %in% todo))
+                    next # don't have structural for this uncertainty
+            break
+        }
+        sequence <- c(sequence, entry)
+        todo <- todo[todo != entry]
+
+        if (entry == "Discounting") {
+            jdat$discountrate <- idealdat$discountrate
+            jdat$`Declining Discounting?` <- "1"
+        } else if (entry == "Damages") {
+            jdat$log.scc.synth <- idealdat$log.scc.synth
+        } else if (entry %in% names(structural.uncertainty)) {
+            jdat[, entry] <- idealdat[, entry]
+        } else {
+            jdat[, entry] <- "1"
+        }
+
+        predict.forest.all(jdat, incrows, paste0("outputs/rf_experiments/RFD_J", mc, "_", length(sequence), ".RData"))
+    }
+
+    save(sequence, file=paste0("outputs/rf_experiments/RFD_J", mc, "_sequence.RData"))
+}
+
