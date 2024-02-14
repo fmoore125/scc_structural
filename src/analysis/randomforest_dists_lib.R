@@ -277,7 +277,7 @@ calc.varimport.forest <- function(forest) {
         if (!is.list(forest[[ii]]))
             next
         results <- calc.varimport.tree(forest[[ii]])
-        alltrees <- rbind(alltrees, calc.varimport.tree(tree) %>% group_by(column) %>% summarize(import=max(import)))
+        alltrees <- rbind(alltrees, results %>% group_by(column) %>% summarize(import=max(import)))
         count <- count + 1
     }
 

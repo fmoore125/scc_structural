@@ -39,11 +39,11 @@ barpdf <- get.bar2(0, allsamp, 'DICE')
 allsamp.last <- allsamp
 
 load("outputs/rf_experiments/RFD_I1.RData")
-barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '+ Damages'))
+barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '+ Discounting'))
 allsamp.last <- allsamp
 
 load("outputs/rf_experiments/RFD_I2.RData")
-barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '+ Discounting'))
+barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '+ Damages'))
 allsamp.last <- allsamp
 
 for (cc in 75:83) {
@@ -62,11 +62,11 @@ load(paste0("outputs/rf_experiments/RFD_best.RData"))
 barpdf <- rbind(barpdf, get.bar2(0, allsamp, '= Synthetic\nSCC'))
 
 load("outputs/rf_experiments/RFD_I5.RData")
-barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '- Damages'))
+barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '- Discounting'))
 allsamp.last <- allsamp
 
 load("outputs/rf_experiments/RFD_I6.RData")
-barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '- Discounting'))
+barpdf <- rbind(barpdf, get.bar2(allsamp.last, allsamp, '- Damages'))
 allsamp.last <- allsamp
 
 for (cc in 75:83) {
@@ -83,7 +83,7 @@ for (cc in c(44:47, 49, 51:56)) {
 
 barpdf$label <- factor(barpdf$label, levels=c('DICE', '+ Discounting', '+ Damages', '+ Structural', '+ Uncertainty',
                                               '= Synthetic\nSCC',
-                                              '- Damages', '- Discounting', '- Structural', '- Uncertainty'))
+                                              '- Discounting', '- Damages', '- Structural', '- Uncertainty'))
 
 forboth <- barpdf %>% group_by(colour) %>% summarize(diffs=sum(abs(ymax - ymin)))
 major <- forboth$colour[forboth$diffs > 10] # actually, min is 20
@@ -100,7 +100,7 @@ barpdf$xmax[barpdf$label == '- Structural'] <- 8.5 + seq(1/9, by=1/9, length.out
 barpdf$xmin[barpdf$label == '- Uncertainty'] <- 9.5 + seq(0, by=1/14, length.out=11)
 barpdf$xmax[barpdf$label == '- Uncertainty'] <- 9.5 + seq(1/12, by=1/14, length.out=11)
 
-ggplot(barpdf) +
+ggplot(barpdf[1:27,]) +
     geom_rect(aes(ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax, fill=colour, colour=colour)) +
     geom_errorbar(aes(x=(xmin + xmax) / 2, ymin=ci25, ymax=ci75), width=.1) +
     geom_hline(yintercept=0) +

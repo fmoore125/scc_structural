@@ -275,3 +275,69 @@ for (mc in 2:1000) {
     save(sequence, file=paste0("outputs/rf_experiments/RFD_J", mc, "_sequence.RData"))
 }
 
+## Find out the weighting over the forest
+
+get.leaf <- function(tree, datpred) {
+    stopifnot(nrow(datpred) == 1)
+
+    if (!is.na(tree$split) && tree$split == 'terminal')
+        return(tree)
+
+    if (!is.na(tree$split) && tree$split == 'categorical')
+        branch <- as.character(datpred[, tree$col])
+    else if (is.numeric(tree$split) || is.na(tree$split))
+        branch <- get.numeric.branches(datpred[, tree$col], tree$split)
+    else
+        return(NULL) # unknown split
+
+    if (is.null(tree$children[[branch]])) # branch not available in training data
+        return(tree)
+
+    return(get.leaf(tree$children[[branch]], datpred))
+}
+
+get.weighting <- function(forest, datpred) {
+    alltrees <- data.frame()
+    count <- 0
+    for (ii in 1:length(forest)) {
+        if (!is.list(forest[[ii]]))
+            next
+
+        leaf <- get.leaf(forest[[ii]], datpred)
+        alltrees <- rbind(alltrees, data.frame(tree=ii, row=leaf$rows))
+        count <- count + 1
+    }
+
+    alltrees %>% group_by(row) %>% summarize(weight=length(tree) / count)
+}
+
+load("outputs/rf_experiments/idealdat.RData")
+
+pdf <- data.frame()
+for (ii in which(incrows)) {
+    weighting <- get.weighting(forest, idealdat[ii,])
+    pdf <- rbind(pdf, cbind(predrow=ii, weighting))
+}
+
+finalweights <- pdf %>% group_by(row) %>% summarize(weight=sum(weight) / sum(incrows))
+
+## Make a spiral of points
+finalweights$xx <- sqrt(finalweights$row) * cos(4 * sqrt(finalweights$row))
+finalweights$yy <- sqrt(finalweights$row) * sin(4 * sqrt(finalweights$row))
+finalweights$discountrate <- idealdat$discountrate[finalweights$row]
+finalweights$structurals <- (dat$`Ambiguity/Model Uncertainty`[finalweights$row] == "1") +
+    (dat$`Earth system`[finalweights$row] == "1") + (dat$`Epstein-Zin`[finalweights$row] == "1") +
+    (dat$`Inequality Aversion`[finalweights$row] == "1") + (dat$`Learning`[finalweights$row] == "1") +
+    (dat$`Limitedly-Substitutable Goods`[finalweights$row] == "1") + (dat$`Persistent / Growth Damages`[finalweights$row] == "1") +
+    (dat$`Tipping Points`[finalweights$row] == "1") + (dat$`Tipping Points2`[finalweights$row] == "1")
+
+ggplot(finalweights, aes(xx, yy, alpha=weight, fill=discountrate, colour=discountrate)) +
+    geom_point() + # geom_jitter(width=1) +
+    scale_fill_gradient(low='red', high='blue', trans='log10') +
+    scale_colour_gradient(low='red', high='blue', trans='log10') + theme_void()
+
+ggplot(finalweights, aes(xx, yy, alpha=weight, fill=factor(structurals), colour=factor(structurals))) +
+    geom_point() + # geom_jitter(width=1) +
+    theme_void()
+
+write.csv(finalweights, "outputs/rfdists-weighting.csv", row.names=F)
