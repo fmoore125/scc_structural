@@ -78,7 +78,7 @@ papers=unique(dat$ID_number)
 
 #set both to false for unweighted distribution, set one to false and the other to true for either citation or coauthor weighting
 weighting_coauthors=FALSE
-weighting_citations=FALSE
+weighting_citations=TRUE
 
 nsamp=1e7
 dist=matrix(nrow=nsamp,ncol=2)
@@ -101,8 +101,8 @@ for(i in 1:nsamp){
 
 colnames(dist)=c("draw","row")
 if(weighting_coauthors==FALSE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_v2_Jan2024.csv")
-if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted_v2.csv")
-if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted_v2.csv")
+if(weighting_coauthors==TRUE&weighting_citations==FALSE) fwrite(dist,file="outputs/distribution_coauthorweighted_v2_Jan2024.csv")
+if(weighting_coauthors==FALSE&weighting_citations==TRUE) fwrite(dist,file="outputs/distribution_citationweighted_v2_Jan2024.csv")
 
 
 #make some figures analyzing variance in distribution
