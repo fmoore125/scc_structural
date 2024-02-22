@@ -201,11 +201,11 @@ fig3c=ggplot(fig3cdat)+geom_density(aes(x=dr,group=type,lty=type,col=type),lwd=0
 bayespost=read.csv("data/expert_survey/meta-analysis-distribution.csv")
 
 #get fraction of dataset containing structural changes
-dat$'Earth System'=ifelse(dat$`Climate Model`=="1.0"|dat$`Carbon Cycle`=="1.0","1.0",NA)
+dat$'Earth System'=ifelse(dat$`Climate Model`==1|dat$`Carbon Cycle`==1,1,NA)
 
 strucfrac=dat%>%
   #dplyr::select("Tipping Points":"Alternative ethical approaches (not Discounted Utilitarianism)","Earth System")%>%
-  dplyr::summarise(across(c("Tipping Points":"Learning","Earth System"), ~ sum(.x=="1.0",na.rm=T)/n()))%>%
+  dplyr::summarise(across(c("Tipping Points":"Learning","Earth System"), ~ sum(.x==1,na.rm=T)/n()))%>%
   pivot_longer(everything())
 
 strucfrac$name[c(1:2,6)]=c("Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability")

@@ -9,7 +9,7 @@ library(forcats)
 library(zoo)
 library(patchwork)
 
-dist=fread(file="outputs/distribution_v2.csv")
+dist=fread(file="outputs/distribution_v2_Jan2024.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 
@@ -202,15 +202,15 @@ a
 #distributions of strucutral changes - with and without structural change
 
 #concatenate Carbon Cycle and Climate System changes into Earth System changes
-dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`=="1.0",1.0,ifelse(dat$`Climate Model`=="1.0",1.0,0)))
+dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`==1,1.0,ifelse(dat$`Climate Model`==1,1.0,0)))
 
 struc=dat%>%
-  select("Earth System","Tipping Points":"Learning")%>%
+  dplyr::select("Earth System","Tipping Points":"Learning")%>%
   replace(is.na(.),0)
 
 diststruc=cbind(dist,struc[dist$row,])
 
-diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
+diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods","Distributional Weighting"="Inequality Aversion")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
