@@ -51,7 +51,6 @@ d=ggplot(regdat,aes(x=var,y=coef))+geom_point(col="black")+theme_classic()+
   geom_hline(yintercept = 0)+labs(x="",y="Regression Coefficient on Log SCC")+
   #scale_color_manual(values=c("Earth System"="#a6611a","Tipping Points: Climate"="#dfc27d","Tipping Points: Damages"="#fed976","Limited Substitutability"="#a1d99b","Persistent / Growth Damages"="#feb24c","Distributional Weights"="#99d8c9","Epstein-Zin"="#41ae76","Learning"="#9ecae1","Ambiguity/Model Uncertainty"="#005824"))+
   theme(legend.position = "none",text=element_text(size=16))
-
 #------ANOVA Plot----Figure 2b
 
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
@@ -196,7 +195,7 @@ e=ggplot(anvdf2, aes(x=1, y=`Sum Sq`)) +
 
 
 layout="
-######BBBB
+AAAAA#BBBB
 AAAAA#BBBB
 AAAAA#BBBB
 AAAAA#BBBB
@@ -206,7 +205,7 @@ AAAAA#BBBB
 AAAAA#BBBB
 ######BBBB
 "
-patchwork=d+e+plot_layout(design=layout)
+patchwork=d+e+plot_layout(design=layout)+plot_annotation(tag_levels="a",tag_suffix = ')')&theme(plot.tag = element_text(size=24))
 
 ggsave("figures/Science Revision/figure2.pdf",plot=patchwork,width=11,height=7,units="in")
 

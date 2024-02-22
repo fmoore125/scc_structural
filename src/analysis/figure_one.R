@@ -93,7 +93,7 @@ struc=dat%>%
 
 diststruc=cbind(dist,struc[dist$row,])
 
-diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
+diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods","Distributional Weights"="Inequality Aversion")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
@@ -115,7 +115,7 @@ colnames(referencedensity)=c("lowest","min","lower","middle","upper","max","high
 referencedensity=cbind(data.frame(group="Reference"),referencedensity)
 
 densities=rbind(summarytot,referencedensity,diststrucdensities,summarydist_dr,summarydist_pubyear,summarydist_dam,summarydist_type)
-densities$group=factor(densities$group, levels=rev(c("Full Distribution","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Inequality Aversion","Epstein-Zin","Learning","Ambiguity/Model Uncertainty","<2.5",">=2.5","2000-2011","2012-2022","DICE","FUND","PAGE","Other","Empirical Improvement","Framework Expansion","Sensitivity Analysis")))
+densities$group=factor(densities$group, levels=rev(c("Full Distribution","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Distributional Weights","Epstein-Zin","Learning","Ambiguity/Model Uncertainty","<2.5",">=2.5","2000-2011","2012-2022","DICE","FUND","PAGE","Other","Empirical Improvement","Framework Expansion","Sensitivity Analysis")))
 ymin=-100;ymax=1100
 densities=densities%>%mutate(across(lowest:mu, function(x) ifelse(x<ymin,ymin,ifelse(x>ymax,ymax,x))))
 
@@ -169,7 +169,7 @@ a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =
 a=a+labs(x="",y="2010-2030 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
-pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=8.5)
+pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=10)
 a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.5,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
 
