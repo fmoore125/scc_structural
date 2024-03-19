@@ -1,6 +1,7 @@
 #load random forest
 library(data.table)
 library(tidyverse)
+library(MetBrewer)
 
 load("outputs\\randomforest_plots\\rfdistsmodel-final.RData")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -133,5 +134,31 @@ sampdat$cons_growth_percap=NA;sampdat$`Central Value ($ per ton CO2)`=NA;sampdat
 
 dist=predict.forest(forest,sampdat,dist=NULL)
 
-#empirical cdf
+#get empirical distribution by interploating between quantiles
+dists=data.frame(probs=all.qs,quants=dist)
+quantilefun=approxfun(x=dists$probs,y=dists$quants)
+sampledraws=quantilefun(runif(10000, min=0,max=1))
+
+a=ggplot(as.data.frame(sampledraws),aes(x=sampledraws))+geom_density(lwd=0.25)+
+  theme_classic()+labs(x="SCC ($ per ton CO2)",y="")+theme(axis.text.y =element_blank() , axis.ticks.y =element_blank())+
+  scale_x_continuous(expand = c(0, 0))+ expand_limits(x = 0, y = 0)
+
+#try as boxplot instead
+sampledraws=data.frame(draw=sampledraws)
+
+samplequants=sampledraws%>%summarize_at(vars(draw),funs(!!!pfuns))
+colnames(samplequants)=c("lowest","min","lower","middle","upper","max","highest", "mu")
+samplequants$y=1
+
+boxplots_draws=ggplot(samplequants,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max))+coord_flip(ylim=c(0,1000))+theme_classic()+
+  geom_boxplot(stat="identity",width=0.1)+geom_segment(aes(xend=y,y=lowest,yend=min),lty=2)+geom_segment(aes(xend=y,y=max,yend=highest),lty=2)+
+  geom_point(aes(y=mu))+theme(text=element_text(size=16))+labs(y="SCC ($ per ton CO2)",x="")+theme(axis.text.y =element_blank() , axis.ticks.y =element_blank())
+
+
+#generate variable importance plot for random forest
+vip=read.csv("outputs/randomforest_plots/variable_importance_plot_Jan2024.csv")
+vip$column=ordered(vip$column,levels=vip$column[order(vip$import,decreasing=FALSE)])
+
+a=ggplot(vip,aes(x=import,y=column,fill=Type))+geom_col()+theme_classic()+scale_fill_manual(values=met.brewer("Navajo",4,type="discrete"),labels=c("Damage Fun.","Other","Parametric","Structural"))
+a=a+labs(x="Variable Importance",y="",fill="Variable Type")+theme(text=element_text(size=14))
 
