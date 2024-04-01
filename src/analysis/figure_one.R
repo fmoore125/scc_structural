@@ -23,9 +23,9 @@ dist$type=dat$`Empirical Improvement or Sensitvity Analysis?`[dist$row]
 dist$yeargroup=cut(dist$year,breaks=c(2009,2030,2070,2101),labels=c("2010-2030","2031-2070","2071-2100"))
 
 a1=ggplot(dist%>%filter(complete.cases(dist$yeargroup)&dist$yeargroup=="2010-2030"))+geom_density(aes(group=yeargroup,x=draw),adjust=3,lwd=0.75)
-a1=a1+scale_x_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(-50,seq(0,175,by=25),seq(250,450,by=50),seq(600, 1100, by=100)), limits=c(-100,1100), expand=c(0, 0))
+a1=a1+scale_x_continuous(breaks=seq(0,1200,by=100),minor_breaks=c(-50,seq(0,400,by=25),seq(400,1200,by=50)), limits=c(-100,1100), expand=c(0, 0),position="top")
 a1=a1+theme_bw()
-a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text = element_blank(),axis.ticks=element_blank(), plot.margin = unit(c(1,1,0,1), "cm")) 
+a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text.y = element_blank(),axis.ticks.y=element_blank(), plot.margin = unit(c(1,1,0,1), "cm"),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank()) 
 a1=a1+labs(y="",x="")
 
 #retain 2010-2030 values as 2020 equivalent SCC
@@ -159,17 +159,17 @@ papersfull=rbind(paperstot,papers_ref,papers, papers_dr[1:2,],papers_pubyear[1:2
 
 a=ggplot(densities)+coord_flip()+theme_bw()
 a=a+geom_boxplot(aes(x=group,min=min,lower=lower,middle=middle,upper=upper,max=max,col=group),inherit.aes=FALSE,stat="identity")
-a=a+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(-50,seq(0,175,by=25),seq(250,450,by=50),seq(600, 1100, by=100)), limits=c(-100,1100), expand=c(0, 0))
+a=a+scale_y_continuous(breaks=seq(0,1200,by=100),minor_breaks=c(-50,seq(0,400,by=25),seq(400,1200,by=50)), limits=c(-100,1100), expand=c(0, 0))
 a=a+geom_segment(aes(x=group,xend=group,y=lowest,yend=min,col=group),lty=2)+geom_segment(aes(x=group,xend=group,y=max,yend=highest,col=group),lty=2)
 a=a+geom_point(aes(x=group,y=mu,col=group))
-a=a+annotate("text",x=c(18,10.3,8.7,5,2),y=1000,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
+a=a+annotate("text",x=c(18,10.3,8.7,5,2),y=950,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
 a=a+geom_vline(xintercept=c(21.5,11.5,9.5,7.5,3.5))
 a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2011"="#fbb4b9","2012-2021"="#7a0177","DICE"='#fed976',"FUND"='#fd8d3c',"PAGE"='#f03b20',"Other"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000","Empirical Improvement"="#c2e699","Sensitivity Analysis"="#31a354","Framework Expansion"="#006837"))
-a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"))
-a=a+labs(x="",y="2010-2030 SCC ($ per ton CO2)")
+a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"),axis.ticks = element_blank(),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
+a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
-pdf(file="figures/Science Revision/figure1_full.pdf",width=11,height=10)
+pdf(file="figures/Science Revision/figure1_full_revised.pdf",width=11,height=11)
 a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.5,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
 
