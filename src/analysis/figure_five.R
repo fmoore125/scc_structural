@@ -42,17 +42,23 @@ iwgdist_summary=iwgdist%>%
 colnames(iwgdist_summary)=c("lowest","min","lower","middle","upper","max","highest", "mu")
 
 dists=rbind(summarytot,epa_summary,iwgdist_summary)
-dists$y=c(3,2.5,2.25)
+dists$y=c(3.5,2.75,2.25)
 dists$group=c("Random Forest","EPA","IWG")
+dists$label=c("Synthetic SCC","US EPA","US IWG")
+
+germanscc=data.frame(prtp=c(0,1),scc=c(777,223))
 
 a=ggplot(dists)+coord_flip()+theme_bw()+
   geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,col=group),inherit.aes=FALSE,stat="identity",width=c(0.4,0.2,0.2),lwd=0.4)+
   scale_y_continuous(breaks=seq(0,1200,by=100),minor_breaks=c(-50,seq(0,400,by=25),seq(400,1200,by=50)), limits=c(-50,1300), expand=c(0,0))+
   geom_segment(aes(x=y,xend=y,y=lowest,yend=min,col=group),lty=2,lwd=0.4)+geom_segment(aes(x=y,xend=y,y=max,yend=highest,col=group),lty=2,lwd=0.4)+
   scale_color_manual(values=c("#233350","#3e778a","black"),guide=NULL)+labs(x="",y="2020 SCC ($ per ton CO2)")+geom_point(aes(x=y,y=mu,col=group),size=2)+
-  theme(text=element_text(size=16),axis.text.y = element_blank(),axis.ticks.y = element_blank(),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())+
-  annotate("text",x=c(3.04,2.55,2.3),y=c(650,400,150),label=c("Synthetic SCC","EPA","IWG"),col=c("black","#233350","#3e778a"),size=6)+
-  geom_vline(xintercept=2.67,lty=4)
+  theme(text=element_text(size=10),axis.text.y = element_blank(),axis.ticks.y = element_blank(),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())+
+  geom_text(x=c(3.65,2.88,2.38),y=c(650,400,175),aes(label=label),col=c("black","#233350","#3e778a"),size=6)+
+  geom_vline(xintercept=3.2,lty=4)+geom_point(data=germanscc,aes(y=scc,x=1.95),col="#4D91D1")+annotate("text",x=2,y=500,label="German EPA",size=6,col="#4D91D1")+
+  geom_segment(y=345,yend=250,x=1.95,xend=1.95,col="#4D91D1",arrow=arrow(length = unit(0.3, "cm")),lwd=1)+
+  geom_segment(y=660,yend=750,x=1.95,xend=1.95,col="#4D91D1",arrow=arrow(length = unit(0.3, "cm")),lwd=1)
+  
 
 pdf(file="figures/Science Revision/figure5_a.pdf",width=9,height=4)
 a
