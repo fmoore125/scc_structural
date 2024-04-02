@@ -170,7 +170,7 @@ a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
 pdf(file="figures/Science Revision/figure1_full_revised.pdf",width=11,height=11)
-a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.5,5))+ plot_annotation(theme = theme(plot.margin = margin()))
+a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.22,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
 
 
