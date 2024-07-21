@@ -88,6 +88,8 @@ dicedat$discountrate <- 4.6
 
 predict.forest.all(dicedat, incrows, "outputs/rf_experiments/RFD_A_dice.RData")
 
+save(dat, idealdat, dicedat, file="rshiny/dats.RData")
+
 ##----B. EPA assumptions -----
 epadat <- dicedat
 
@@ -341,3 +343,47 @@ ggplot(finalweights, aes(xx, yy, alpha=weight, fill=factor(structurals), colour=
     theme_void()
 
 write.csv(finalweights, "outputs/rfdists-weighting.csv", row.names=F)
+
+## Draw little trees
+
+pdf.forest <- data.frame()
+tree.count <- 0
+for (ii in 1:length(forest)) {
+    if (!is.list(forest[[ii]]))
+        next
+    print(ii)
+
+    pdf.tree <- apply.tree(forest[[ii]], function(init, branch, branches, tree) {
+        if (length(branches) == 1) { # Initial split
+            data.frame(branch, column=tree$col, split=tree$split, allowwidth=init$allowwidth, count=length(tree$rows), parentx=init$x, parenty=init$y, x=init$x, y=init$y)
+        } else if (!is.na(tree$split) && tree$split == 'terminal') {
+            data.frame(branch, column=NA, split=tree$split, allowwidth=0, count=length(tree$rows), parentx=init$x, parenty=init$y, x=init$x - init$allowwidth * ((2*which(branches == branch)-1) / (2*length(branches)) - .5), y=init$y - 1)
+        } else {
+            data.frame(branch, column=tree$col, split=tree$split, allowwidth=init$allowwidth / length(branches), count=length(tree$rows), parentx=init$x, parenty=init$y, x=init$x - init$allowwidth * ((2*which(branches == branch)-1) / (2*length(branches)) - .5), y=init$y - 1)
+        }
+    }, data.frame(x=0, y=0, allowwidth=2), "", "", allow.levels=4)
+
+    pdf.tree$columngroup <- "Terminal"
+    pdf.tree$columngroup[pdf.tree$column %in% c("Tipping Points", "Tipping Points2", "Persistent / Growth Damages", "Epstein-Zin",
+                                                "Ambiguity/Model Uncertainty", "Limitedly-Substitutable Goods", "Inequality Aversion",
+                                                "Learning", "Earth system")] <- "Structural"
+    pdf.tree$columngroup[pdf.tree$column %in% c("TFP Growth", "Population Growth", "Emissions Growth",
+                                                "Transient Climate Response", "Carbon Cycle2", "Equilibrium Climate Sensitivity",
+                                                "Tipping Point Magnitude", "Damage Function", "Adaptation Rates", "Income Elasticity",
+                                                "Constant Discount Rate", "EMUC2", "PRTP2", "Risk Aversion (EZ Utility)")] <- "Uncertainty"
+    pdf.tree$columngroup[pdf.tree$column %in% c("Backstop Price?", "Declining Discounting?", "Market Only Damages", "Other Market Failure?")] <- "Feature"
+    pdf.tree$columngroup[pdf.tree$column %in% c("sccyearformerge", "discountrate", "log.scc.synth", "Year")] <- "Parameter"
+
+    pdf.forest <- rbind(pdf.forest, cbind(tree=tree.count + 1, pdf.tree))
+    tree.count <- tree.count + 1
+}
+
+pdf.forest$treex <- sqrt(pdf.forest$tree) * cos(4 * sqrt(pdf.forest$tree))
+pdf.forest$treey <- sqrt(pdf.forest$tree) * sin(4 * sqrt(pdf.forest$tree))
+
+ggplot(pdf.forest, aes(treex + x / 2, treey + y / 2.5, colour=columngroup)) +
+    geom_segment(aes(xend=treex + parentx / 2, yend=treey + parenty / 2.5)) +
+    geom_point(data=subset(pdf.forest, split == 'terminal' | y == -4), aes(size=count)) +
+    scale_size_continuous("Estimates:", range=c(0, 1), trans="log10") +
+    scale_colour_discrete("Branch attribute:") +
+    theme_void() + coord_fixed()

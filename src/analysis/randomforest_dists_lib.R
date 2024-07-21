@@ -200,11 +200,11 @@ predict.tree <- function(tree, datpred, dist, ndraw=1e3) {
     return(predict.tree(tree$children[[branch]], datpred, dist, ndraw=ndraw))
 }
 
-apply.tree <- function(tree, func, init, branch, branches) {
+apply.tree <- function(tree, func, init, branch, branches, allow.levels=Inf) {
     results <- func(init, branch, branches, tree)
-    if (!is.na(tree$split) && tree$split != 'terminal') {
+    if (!is.na(tree$split) && tree$split != 'terminal' && allow.levels > 0) {
         for (branch in unique(names(tree$children)))
-            results <- rbind(results, apply.tree(tree$children[[branch]], func, results[1,], branch, unique(names(tree$children))))
+            results <- rbind(results, apply.tree(tree$children[[branch]], func, results[1,], branch, unique(names(tree$children)), allow.levels=allow.levels-1))
     }
 
     results

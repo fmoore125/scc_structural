@@ -134,7 +134,7 @@ labels <- data.frame(pred=c('Transient.Climate.Response_param', 'Carbon.Cycle2_p
                              '#54278f', '#54278f',
                              rep('#54278f', 3)))
 
-df_paperfe2 <- distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),]
+df_paperfe2 <- distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10 & runif(nrow(distreg)) > .5),]
 mod_paperfe2 <- lm(log(draw)~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
             Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
             Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
@@ -203,6 +203,27 @@ if (F) {
 anv <- anova(mod_paperfe2)
 anvdf <- as.data.frame(anv)
 anvdf$pred <- rownames(anvdf)
+
+anvdf$`Sum Sq`[anvdf$pred == 'Residuals'] / sum(anvdf$`Sum Sq`)
+anvdf$`Sum Sq`[anvdf$pred == 'factor(paper)'] / sum(anvdf$`Sum Sq`)
+
+if (F) {
+    df_paperfe3 <- cbind(distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),] %>% group_by(row) %>% summarise(draw.mu=mean(draw), draw.med=median(draw)),
+                         distreg[which(distreg$draw>0 & distreg$sccyear_from2020 >= -10 & distreg$sccyear_from2020 <= 10),] %>% group_by(row) %>% summarise_all(.funs = first))
+
+    mod_paperfe3 <- lm(log(draw.med)~Earth_system_struc+Tipping.Points_struc+Tipping.Points2_struc+Persistent...Growth.Damages_struc+
+                           Epstein.Zin_struc+Ambiguity.Model.Uncertainty_struc+Limitedly.Substitutable.Goods_struc+Inequality.Aversion_struc+
+                           Learning_struc+TFP.Growth_param+Population.Growth_param+Emissions.Growth_param+Transient.Climate.Response_param+Carbon.Cycle2_param+
+                           Equilibrium.Climate.Sensitivity_param+Tipping.Point.Magnitude_param+Damage.Function_param+Adaptation.Rates_param+Income.Elasticity_param+
+                           Constant.Discount.Rate_param+EMUC2_param+PRTP2_param+Risk.Aversion..EZ.Utility._param+discountrate+I(discountrate^2)+declining+whichmodel+backstop+failure+log.scc.synth + missing.scc.synth + factor(paper),data=df_paperfe3)
+
+    anv.x <- anova(mod_paperfe3)
+    anvdf.x <- as.data.frame(anv.x)
+    anvdf.x$pred <- rownames(anvdf.x)
+
+    anvdf.x$`Sum Sq`[anvdf.x$pred == 'Residuals'] / sum(anvdf.x$`Sum Sq`)
+    anvdf.x$`Sum Sq`[anvdf.x$pred == 'factor(paper)'] / sum(anvdf.x$`Sum Sq`)
+}
 
 anvdf <- anvdf[!(anvdf$pred %in% c("Residuals", "factor(paper)")),]
 

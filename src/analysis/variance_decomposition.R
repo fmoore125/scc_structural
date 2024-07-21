@@ -132,9 +132,10 @@ for (ii in 1:length(preds)) {
               data=dat[dat$`SCC Year` %in% 2010:2030,], weights=weights[dat$`SCC Year` %in% 2010:2030])
 
     anvdf <- get.anvdf(mod)
+    residpart <- anvdf$`Sum Sq`[anvdf$pred == "Residuals"] / sum(anvdf$`Sum Sq`)
     anvdf <- anvdf[anvdf$pred != "Residuals",]
 
-    results <- rbind(results, data.frame(drop=preds[ii], pred=anvdf$pred, frac=anvdf$`Sum Sq` / sum(anvdf$`Sum Sq`)))
+    results <- rbind(results, data.frame(drop=preds[ii], pred=anvdf$pred, frac=anvdf$`Sum Sq` / sum(anvdf$`Sum Sq`), residpart))
 }
 
 ressum <- results %>% group_by(pred) %>% summarize(mu=mean(frac), min=min(frac), max=max(frac))
