@@ -1,13 +1,15 @@
 ## setwd("~/research/scciams/scc_structural/rshiny")
 
-source("../src/analysis/randomforest_dists_lib.R", chdir=T)
-load("../outputs/rfdistsmodel-final-precompute.RData")
+source("randomforest_dists_lib.R", chdir=T)
+load("rfdistsmodel-final-precompute.RData")
 load("dats.RData")
 
 library(shiny)
 library(shinyjs)
 library(plotly)
 library(tibble)
+
+addResourcePath(prefix='static', directoryPath='static')
 
 strchoices <- list("Ambiguity/Model Uncertainty"="Ambiguity/Model Uncertainty",
                    "Earth System"="Earth system",
@@ -20,20 +22,29 @@ strchoices <- list("Ambiguity/Model Uncertainty"="Ambiguity/Model Uncertainty",
                    "Tipping Points: Damages"="Tipping Points2")
 strchoices2 <- list()
 for (nn in names(strchoices)) {
-    strchoices2[[paste0(nn, " (", round(100 * mean(dat[, strchoices[[nn]]] == "1")), "% of lit.; ",
-                        round(100 * mean(idealdat[, strchoices[[nn]]] == "1")), "% by exp.)")]] <-
+    strchoices2[[paste0(nn, " (", signif(100 * mean(dat[, strchoices[[nn]]] == "1"), 2), "% of lit.; ",
+                        signif(100 * mean(idealdat[, strchoices[[nn]]] == "1"), 2), "% by exp.)")]] <-
         strchoices[[nn]]
 }
 
+uncchoicechange <- list("Carbon Cycle2"="Carbon Cycle",
+                        "EMUC2"="Elasticity of marginal utility",
+                        "PRTP2"="Pure rate of time preference",
+                        "Risk Aversion (EZ Utility)"="Risk Aversion")
+
 uncchoices <- list()
-for (cc in which(names(dat) == 'TFP Growth'):which(names(dat) == 'Risk Aversion (EZ Utility)'))
-    uncchoices[[paste0(names(dat)[cc], " (", round(100 * mean(dat[, cc] == "1")), "% of lit.)")]] <- names(dat)[cc]
+for (cc in which(names(dat) == 'TFP Growth'):which(names(dat) == 'Risk Aversion (EZ Utility)')) {
+    label <- names(dat)[cc]
+    if (label %in% names(uncchoicechange))
+        label <- uncchoicechange[[label]]
+    uncchoices[[paste0(label, " (", signif(100 * mean(dat[, cc] == "1"), 2), "% of lit.)")]] <- names(dat)[cc]
+}
 
 othchoices <- c("Backstop Price?", "Declining Discounting?",
                 "Market Only Damages", "Other Market Failure?")
 othchoices2 <- list()
 for (nn in othchoices) {
-    othchoices2[[paste0(nn, " (", round(100 * mean(dat[, nn] == "1")), "% of lit.)")]] <- nn
+    othchoices2[[paste0(nn, " (", signif(100 * mean(dat[, nn] == "1"), 2), "% of lit.)")]] <- nn
 }
 
 ui <- fluidPage(
@@ -61,9 +72,77 @@ ui <- fluidPage(
             .config-table tr:nth-child(even) {
                 background-color: #f9f9f9;
             }
-        "))
+          "))
         ),
-    titlePanel("Modeling the SCC"),
+    tags$script(HTML('
+const tooltips = {
+    // Structural changes
+    "Ambiguity/Model Uncertainty": "Considers various models showing pessimistic results for SCC, leading to cautionary decision-making and higher SCC values.",
+    "Earth system": "Changes to how emissions translate into atmospheric concentrations and temperatures, impacting SCC based on temperature response.",
+    "Epstein-Zin": "Incorporates separated risks across time and nature, influencing SCC by preventing higher risk aversion from lowering discount rates.",
+    "Inequality Aversion": "Weighting impacts to reflect higher welfare losses in poorer regions affected more by climate change, often increasing the SCC.",
+    "Learning": "Models changing over time as data updates unknown parameters, usually reducing SCC by refining policy to match true climate states.",
+    "Limitedly-Substitutable Goods": "Models considering environmental goods and their substitutability with consumption goods, with ambiguous effect on SCC.",
+    "Persistent / Growth Damages": "Accounts for long-lasting effects of temperature changes on productivity or capital depreciation, leading to higher SCC.",
+    "Tipping Points": "Incorporates subsystems like ice sheets or ocean circulation that can suddenly change state, affecting the SCC diversely.",
+    "Tipping Points2": "Models sudden, irreversible economic impacts from climate thresholds, generally increasing SCC due to higher future damages.",
+
+    // Parametric uncertainty
+    "TFP Growth": "Uncertainty in Total Factor Productivity growth rate.",
+    "Population Growth": "Variability in future population growth predictions.",
+    "Emissions Growth": "Uncertainty in future emissions growth rates.",
+    "Transient Climate Response": "Short-term temperature sensitivity to CO2 emissions.",
+    "Carbon Cycle2": "Uncertainty in carbon cycle dynamics affecting atmospheric CO2.",
+    "Equilibrium Climate Sensitivity": "Long-term temperature sensitivity to CO2 levels.",
+    "Tipping Point Magnitude": "Expected impact size of crossing climate or damage tipping points.",
+    "Damage Function": "Uncertainty in the relationship between climate changes and economic damages.",
+    "Adaptation Rates": "Rates at which populations or economies adapt to climate impacts.",
+    "Income Elasticity": "Relation between income changes and changes in climate damage resilience or vulnerability.",
+    "Constant Discount Rate": "Uncertainty in the fixed rate used to discount future costs and benefits to present value.",
+    "EMUC2": "Elasticity of marginal utility of consumption, relating to diminishing returns on consumption increases.",
+    "PRTP2": "Pure rate of time preference, reflecting how future utility is discounted.",
+    "Risk Aversion (EZ Utility)": "Degree to which variability in outcomes affects welfare valuation.",
+
+    // Other options
+    "Backstop Price?": "Consideration of a future technology eliminating emissions at a fixed cost.",
+    "Declining Discounting?": "Uses discount rates that decrease over time instead of remaining constant.",
+    "Market Only Damages": "Considers only direct market damages, excluding non-market and indirect effects.",
+    "Other Market Failure?": "Accounts for additional market inefficiencies beyond carbon pricing."
+};
+
+  $(document).ready(function() {
+    $("input:checkbox").each(function() {
+      $(this).prop({checked: false, indeterminate: true});
+      var key = $(this).attr("value");
+      var $sister = $(":checkbox[name=" + $(this).prop("name") + "_deter][value=\'" + key + "\']");
+      $sister.prop("checked", false);
+      $(this).on("change", function() {
+        if ($(this).prop("checked") && !$sister.prop("checked")) {
+          // Transition from minus to plus
+          $sister.prop("checked", true);
+          $sister.trigger("change");
+          return true;
+        } else if ($(this).prop("checked") && $sister.prop("checked")) {
+          // Transition from blank to minus
+          $(this).prop("checked", false);
+          $(this).prop("indeterminate", true);
+          $sister.prop("checked", false);
+          $sister.trigger("change");
+          return true;
+        } else {
+          // Transition from plus to blank
+          $sister.prop("checked", true);
+          $sister.trigger("change");
+          return true;
+        }
+      });
+
+      var tooltip = $("<img style=\\"margin-left: 10px\\" src=\\"static/dialog-question-symbolic.svg\\"/>");
+      $(tooltip).appendTo($(this).parent()).attr("title", tooltips[key]).tooltip();
+    });
+  });
+')),
+    titlePanel("Social Cost of Carbon Generator"),
     sidebarLayout(
         sidebarPanel(
             class='sidebar',
@@ -85,23 +164,42 @@ ui <- fluidPage(
                 inputId="structgroup",
                 label="Choose structural changes:",
                 choices=strchoices2),
+            hidden(
+                checkboxGroupInput(
+                    inputId="structgroup_deter",
+                    label="Choose structural changes:",
+                    choices=strchoices2)),
             checkboxGroupInput(
                 inputId="uncgroup",
                 label="Choose uncertainty:",
                 choices=uncchoices),
+            hidden(
+                checkboxGroupInput(
+                    inputId="uncgroup_deter",
+                    label="Choose uncertainty:",
+                    choices=uncchoices)),
             checkboxGroupInput(
                 inputId="othergroup",
                 label="Choose other options:",
-                choices=othchoices2)
+                choices=othchoices2),
+            hidden(
+                checkboxGroupInput(
+                    inputId="othergroup_deter",
+                    label="Choose other options:",
+                    choices=othchoices2)),
+            HTML('<div style="height: 40px"></div>')
         ),
         mainPanel(
             plotlyOutput("sccdist", height="500px"),
             uiOutput("configTable"),
             hidden(actionButton("saveButton", "Save Configuration")),
-            hidden(actionButton("loadButton", "Load Selected Configuration"))
+            hidden(actionButton("loadButton", "Load Selected Configuration")),
+            HTML("Note: This tool shows predictions from a random forest model trained on published SCC estimates. SCC distributions from different model structures and parameter values are based on subsets of the literature and should be interpreted with caution.")
         )
     )
 )
+
+
 
 makeConfigRow <- function(rate, dscc, quants) {
     midpoints <- (quants[-length(quants)] + quants[-1]) / 2
@@ -135,6 +233,27 @@ constructTableHTML <- function(rows) {
     }
 }
 
+get.preddat <- function(input) {
+    print(input)
+    preddat <- data.frame(discountrate=input$selected_rate, log.scc.synth=input$selected_dscc,
+                          sccyearformerge=2020, Year=mean(dat$Year))
+    ## Only add if the checkbox is clicked
+    print(input$structgroup_deter)
+    print(input$structgroup)
+    for (nn in names(strchoices))
+        if (strchoices[[nn]] %in% input$structgroup_deter)
+            preddat[, strchoices[[nn]]] <- ifelse(strchoices[[nn]] %in% input$structgroup, "1", "0")
+    for (nn in names(uncchoices))
+        if (uncchoices[[nn]] %in% input$uncgroup_deter)
+            preddat[, uncchoices[[nn]]] <- ifelse(uncchoices[[nn]] %in% input$uncgroup, "1", "0")
+    for (nn in othchoices)
+        if (nn %in% input$othergroup_deter)
+            preddat[, nn] <- ifelse(nn %in% input$othergroup, "1", "0")
+    preddat
+}
+
+## preddat = get.preddat(list(selected_rate=2, selected_dscc=2))
+
 server <- function(input, output, session) {
     output$discountdist <- renderPlotly({
         plot_ly(height=200) %>%
@@ -165,19 +284,18 @@ server <- function(input, output, session) {
                       name="Selected DSCC")
     })
 
+    saved.preddat <- reactive({
+        get.preddat(input)
+    })
+
     calcSCCValues <- reactive({
-        preddat <- data.frame(discountrate=input$selected_rate, log.scc.synth=input$selected_dscc,
-                              sccyearformerge=2020, Year=mean(dat$Year))
-        for (nn in names(strchoices))
-            preddat[, strchoices[[nn]]] <- ifelse(strchoices[[nn]] %in% input$structgroup, "1", "0")
-        for (nn in names(uncchoices))
-            preddat[, uncchoices[[nn]]] <- ifelse(uncchoices[[nn]] %in% input$uncgroup, "1", "0")
-        for (nn in othchoices)
-            preddat[, nn] <- ifelse(nn %in% input$othergroup, "1", "0")
+        preddat <- saved.preddat()
+
         predict.forest(forest, preddat, NULL)
     })
 
     output$sccdist <- renderPlotly({
+        preddat <- saved.preddat()
         output <- calcSCCValues()
         xx <- c()
         yy <- c()
