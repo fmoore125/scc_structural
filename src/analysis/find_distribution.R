@@ -21,21 +21,24 @@
 ## 4. If a .001 or .999 quantile is given, the distribution is
 ##    truncated to those values.
 ##
-## 5. If a central value (mean or median) and one other
+## 5. If the central value is equal to the min or .001 quantile, a
+##    clipped exponential distribution is assumed.
+##
+## 6. If a central value (mean or median) and one other
 ##    (non-truncating) quantile is given, the distribution is assumed
 ##    to be Gaussian.
 ##
-## 6. If a central value (mean or median) and two other
+## 7. If a central value (mean or median) and two other
 ##    (non-truncating) quantiles are given, the distribution is
 ##    assumed to be either a Skew normal or a exponentially modified
 ##    normal, whichever produces a better fit.
 ##
-## 7. Otherwise, if `allow.mixed` is true, the distribution is assumed
+## 8. Otherwise, if `allow.mixed` is true, the distribution is assumed
 ##    to be a mixture of up to k - 2 Gaussians, where k is the number
 ##    of fitting values. If `allow.mixed` is false, a skew-normal or
 ##    exponentially modified normal fit is attempted.
 ##
-## 8. If cases 3 - 7 are used, an alternnative model consisting of a
+## 9. If cases 6 - 8 are used, an alternnative model consisting of a
 ##    piecewise uniform distribution with weights from the spans
 ##    between quantiles, combined with a fitted tail distribution, is
 ##    tried as an alternative, and the best-scoring distribution is
@@ -51,10 +54,8 @@ allow.mixed <- F
 ## Discrete distributions
 
 is.one.value <- function(mu, qs, as)
-(!is.na(mu) && (length(qs) == 0 || all(mu == qs))) || (length(qs) == 1 && (is.na(mu) || mu == as)) ||
-    ((is.na(mu) || mu == as[1]) && min(qs) == 0 && max(qs) == 1 && diff(as) == 0)
-
-
+(!is.na(mu) && (length(qs) == 0 || all(mu == as))) || (length(qs) == 1 && (is.na(mu) || mu == as)) ||
+    ((is.na(mu) || mu == as[1]) && min(qs) == 0 && max(qs) == 1 && diff(range(as)) == 0)
 
 is.two.values <- function(mu, qs, as) {
     if (length(qs) == 2 && any(qs == 0) && any(qs == 1))
@@ -72,6 +73,9 @@ is.three.values <- function(mu, qs, as) {
 
 is.bounded <- function(qs)
     any(qs %in% c(0, .001, .999, 1))
+
+is.exponential <- function(mu, qs, as)
+    (!is.na(mu) && length(qs) > 1 && min(qs) <= 0.001 && min(as) == mu)
 
 is.normal <- function(mu, qs, as) {
     return((!is.na(mu) && length(qs) == 1 && qs != .5 && !is.bounded(qs)) ||
@@ -137,6 +141,25 @@ generate.pdf <- function(mu, qs, as, N) {
                 return(rtri(N, as[qs == 0], as[qs == 1], central - 1e-6))
         } else
             return(rtri(N, as[qs == 0], as[qs == 1], central))
+    }
+
+    if (is.exponential(mu, qs, as)) {
+        leftpt <- min(as)
+        qs.rest <- qs[as != leftpt & qs < .999]
+        as.rest <- as[as != leftpt & qs < .999]
+        if (length(qs.rest) > 1) {
+            result <- fit.distribution(1, function(qs2, lambda) {
+                leftpt + qexp(qs2, lambda)
+            }, NULL, NA, qs.rest, as.rest)
+            values <- leftpt + rexp(N, result$par)
+
+            if (1 %in% qs) # top-code
+                values[values > as[qs == 1]] <- as[qs == 1]
+            if (.999 %in% qs) # truncated
+                values[values > as[qs == .999]] <- sample(values[values <= as[qs == .999]], sum(values > as[qs == .999]), replace=T)
+            last.solution <<- "exponential"
+            return(values)
+        }
     }
 
     values <- generate.general.pdf(mu, qs, as, N)
@@ -419,6 +442,7 @@ generate.general.pdf <- function(mu, qs, as, N) {
     c(values, rnorm(N - length(values), mus[1], sigmas[1]))
 }
 
+## Estimate distribution parameters, given an initial vector of parameters and functions to evaluate quantiles and the mean
 fit.distribution <- function(init, qdist, mudist, mu, qs, as) {
     if (!is.null(mudist)) {
         optim(init, function(params) {

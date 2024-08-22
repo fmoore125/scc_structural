@@ -10,6 +10,10 @@ library(lfe)
 library(patchwork)
 library(MetBrewer)
 
+dist=fread(file="outputs/distribution_v2_Jan2024.csv")
+source("src/data_cleaining_scripts/cleaning_master.R")
+source("src/analysis/damage_funcs_lib.R")
+
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
 source("src/analysis/multivariate_prep.R")
 
