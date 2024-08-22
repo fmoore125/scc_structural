@@ -1,10 +1,12 @@
+## setwd("~/research/scciams/scc_structural")
+
 library(tidyverse)
 library(data.table)
 
-rfdist_dir="C:\\Users\\fmoore\\Documents\\GitHub2\\scc_structural\\scc_structural\\outputs\\synthetic_scc\\Structural SCC RF Experiments\\"
+rfdist_dir="outputs/Structural SCC RF Experiments"
 
 #load best prediction from random forest
-load(paste0(rfdist_dir,"RFD_best.Rdata"))
+load(file.path(rfdist_dir,"RFD_best.Rdata"))
 rfdist=data.frame(dist=allsamp)
 
 #plot the quantiles of the distributions
@@ -58,7 +60,7 @@ a=ggplot(dists)+coord_flip()+theme_bw()+
   geom_vline(xintercept=3.2,lty=4)+geom_point(data=germanscc,aes(y=scc,x=1.95),col="#4D91D1")+annotate("text",x=2,y=500,label="German EPA",size=6,col="#4D91D1")+
   geom_segment(y=345,yend=250,x=1.95,xend=1.95,col="#4D91D1",arrow=arrow(length = unit(0.3, "cm")),lwd=1)+
   geom_segment(y=660,yend=750,x=1.95,xend=1.95,col="#4D91D1",arrow=arrow(length = unit(0.3, "cm")),lwd=1)
-  
+
 
 pdf(file="figures/Science Revision/figure5_a.pdf",width=9,height=4)
 a
