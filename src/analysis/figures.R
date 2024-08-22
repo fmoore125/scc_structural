@@ -9,11 +9,19 @@ library(forcats)
 library(zoo)
 library(patchwork)
 
-dist=fread(file="outputs/distribution_v2.csv")
+dist=fread(file="outputs/distribution_v2_Jan2024.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
+#drop outlier Nordhaus row
+todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
+if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
+
+#add year information
+dist$year=as.numeric(dat$`SCC Year`[dist$row])
+dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
+dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
 
 #make plot of distribution taking out different sources of varition
 #1. take out means
@@ -47,20 +55,17 @@ a=a+theme_bw()+labs(x="",y="Residual SCC Distribution ($ per ton CO2)")+theme(te
 
 #full distribution
 
-#drop outlier Nordhaus row
-todrop=which(dat$`Central Value ($ per ton CO2)`>70000)
-if(is.finite(todrop)) dist=dist[-which(dist$row==todrop),]
-
-dist$year=as.numeric(dat$`SCC Year`[dist$row])
-dist$yeargroup=cut(dist$year,breaks=c(1990,2010,2030,2070,2100,2400))
-dist$yeargroup=fct_recode(dist$yeargroup,'<2010'="(1.99e+03,2.01e+03]",'2010-2030'="(2.01e+03,2.03e+03]",'2030-2070'="(2.03e+03,2.07e+03]",'2070-2100'="(2.07e+03,2.1e+03]",'>2100'="(2.1e+03,2.4e+03]")
-
 distplot=dist
 distplot$y=ifelse(distplot$yeargroup%in%c('2010-2030','2030-2070'),-0.004,-0.006)
 distplot=distplot%>%filter(yeargroup%in%c('2010-2030','2030-2070',"2070-2100"))
 
 quants=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
-pfuns=c(map(quants,~partial(quantile,probs=.x,na.rm=T)), mean)
+truncmean=function(data,trim=0.001){
+  highquant=quantile(data,1-trim)
+  lowquant=quantile(data,trim)
+  return(mean(data[which(data>lowquant&data<highquant)]))
+}
+pfuns=c(map(quants,~partial(quantile,probs=.x,na.rm=T)), truncmean)
 
 summarydist=distplot%>%
   filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
@@ -69,12 +74,12 @@ summarydist=distplot%>%
 colnames(summarydist)[2:9]=c("lowest","min","lower","middle","upper","max","highest", "mu")
 summarydist$y=c(-0.004,-0.004)
 
-a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030","2030-2070")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist,aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+facet_grid(yeargroup~.,scales="free_y",space="free_y")+coord_flip()
-a=a+theme_bw()+labs(y="SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
-a=a+geom_hline(yintercept = 0)+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1200, by=100)), limits=c(-100,1200), expand=c(0, 0))
+a=ggplot(distplot%>%filter(yeargroup%in%c("2010-2030")),aes(x=draw,fill=yeargroup,y=y))+geom_boxplot(data=summarydist[1,],aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,fill=yeargroup,group=yeargroup),inherit.aes=FALSE,stat="identity",width=0.0035)+geom_density(aes(y=draw,fill=yeargroup),inherit.aes=FALSE,adjust=3)+coord_flip()#+facet_grid(yeargroup~.,scales="free_y",space="free_y")
+a=a+theme_bw()+labs(y="2010-2030 SCC ($ per ton CO2)",x="")+scale_fill_discrete(guide="none")+theme(axis.text.y = element_blank(),axis.ticks.y=element_blank(),text=element_text(size=18),strip.background =element_rect(fill="white"))
+a=a+scale_y_continuous(breaks=c(-100,0,100,200,300,400,500,1000,1500),minor_breaks=c(seq(-50, 450, by=50), seq(600, 900, by=100), seq(1100, 1200, by=100)), limits=c(-100,1200), expand=c(0, 0))
 #add dashed lines extending boxplots to 1% and 99%
-a=a+geom_segment(data=summarydist,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist,aes(x=y,xend=y,y=max,yend=highest),lty=2)
-a=a+geom_point(data=summarydist, aes(x=y, y=mu))
+a=a+geom_segment(data=summarydist[1,],aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=summarydist[1,],aes(x=y,xend=y,y=max,yend=highest),lty=2)
+a=a+geom_point(data=summarydist[1,], aes(x=y, y=mu))
 
 #add IWG values
 iwg=read.csv("outputs/iwgruns.csv",row.names=1)
@@ -89,29 +94,43 @@ iwgdist=rbind(iwgdist,extra)
 iwgdist$yeargroup=fct_recode(iwgdist$yeargroup,"2010-2030"="early","2030-2070"="late")
 
 iwgdist_summary=iwgdist%>%
-  filter(yeargroup%in%c("2010-2030","2030-2070"))%>%
+  filter(yeargroup%in%c("2010-2030"))%>%
   group_by(yeargroup)%>%
   summarize_at(vars(value),funs(!!!pfuns))
 colnames(iwgdist_summary)[2:9]=c("lowest","min","lower","middle","upper","max","highest", "mu")
-iwgdist_summary$y=c(-0.01,-0.01)
+iwgdist_summary$y=c(-0.02)
 
-a=a+geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),width=0.0035,data=iwgdist_summary,fill="white",inherit.aes=FALSE,stat="identity")
-ann_text=data.frame(text=c("-- IWG 2020","-- IWG 2050"),yeargroup=factor(c("2010-2030","2030-2070"),levels=levels(iwgdist$yeargroup)),x=c(325,500))
-a=a+geom_text(data=ann_text,aes(label=text,x=-0.01,y=x))
-a=a+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=lowest,yend=min),lty=2)+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=max,yend=highest),lty=2)
+a=a+geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max,group=yeargroup),width=0.0035,data=iwgdist_summary,fill="white",col="lightskyblue",inherit.aes=FALSE,stat="identity")
+ann_text=data.frame(text=c("Interagency Working Group: 2020 SCC"),yeargroup=factor(c("2010-2030"),levels=levels(iwgdist$yeargroup)),x=c(275))
+a=a+geom_text(data=ann_text,aes(label=text,x=-0.019,y=x),col="lightskyblue")
+a=a+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=lowest,yend=min),lty=2,col="lightskyblue")+geom_segment(data=iwgdist_summary,aes(x=y,xend=y,y=max,yend=highest),col="lightskyblue",lty=2)
 a=a+geom_point(data=iwgdist_summary, aes(x=y, y=mu))
+
+#add EPA values
+eparuns=list.files("outputs/epa_scc",full.names = TRUE) #2020 distribution of co2 for 3 damage functions
+epa=fread(eparuns[2]);epa=filter(epa,sector=="total")$scghg
+epa=append(epa,fread(eparuns[1])$scghg);epa=append(epa,fread(eparuns[3])$scghg)
+epa=data.frame(draw=epa,yeargroup="2010-2030")
+epa_summary=epa%>%summarize_at(vars(draw),funs(!!!pfuns))
+colnames(epa_summary)=c("lowest","min","lower","middle","upper","max","highest", "mu")
+epa_summary$y=-0.025;epa_summary$yeargroup="2010-2030"
+
+a=a+geom_boxplot(aes(x=y,min=min,lower=lower,middle=middle,upper=upper,max=max),width=0.0035,data=epa_summary,fill="white",inherit.aes=FALSE,stat="identity",col="royalblue4")
+a=a+annotate("text",label="EPA Proposed Estimate: 2020 SCC",x=-0.024,y=450,col="royalblue4")
+a=a+geom_segment(data=epa_summary,aes(x=y,xend=y,y=lowest,yend=min),lty=2,col="royalblue4")+geom_segment(data=epa_summary,aes(x=y,xend=y,y=max,yend=highest),lty=2,col="royalblue4")
+a=a+geom_point(data=epa_summary, aes(x=y, y=mu))
 
 #add in expert survey results as well to upper panel
 #(survey data processed to produce aggregate distributions in "src/survey_analysis/graphs.R")
 surveydat=fread("outputs/expert_survey_data_products/question1_distributions.csv")
 surveydat$yeargroup=as.factor("2010-2030")
 
-cols=c("seagreen4","palegreen3")
+cols=c("palegreen3","seagreen4")
 surveydat_summary=surveydat%>%
   group_by(type,yeargroup)%>%
   summarize_at(vars(dist),funs(!!!pfuns))
 colnames(surveydat_summary)[3:10]=c("lowest","min","lower","middle","upper","max","highest", "mu")
-surveydat_summary$y=c(-0.015,-0.02)
+surveydat_summary$y=c(-0.01,-0.015)
 #manually replace value to avoid figure cutoff
 surveydat_summary$highest[which(surveydat_summary$highest>1800)]=1800
 
@@ -122,12 +141,14 @@ a=a+geom_boxplot(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,min=min,lo
 a=a+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=lowest,yend=min),lty=2,col=cols[2])+geom_segment(data=surveydat_summary%>%filter(type=="Tru"),aes(x=y,xend=y,y=highest,yend=max),lty=2,col=cols[2])
 a=a+geom_point(data=surveydat_summary, aes(x=y, y=mu))
 
-ann_text2=data.frame(text=c("Expert Survey: Literature 2020 Estimate","Expert Survey: Comprehensive 2020 Estimate"),yeargroup=factor(rep("2010-2030",2)),y=c(600,600),x=c(-0.013,-0.018),type=c("Lit","Tru"))
+ann_text2=data.frame(text=c("Expert Survey: Literature 2020 Estimate","Expert Survey: Comprehensive 2020 Estimate"),yeargroup=factor(rep("2010-2030",2)),y=c(600,600),x=c(-0.009,-0.014),type=c("Lit","Tru"))
 a=a+geom_text(data=ann_text2,aes(y=y,x=x,label=text,col=type),inherit.aes=FALSE)
 a=a+scale_color_manual(values=cols,guide="none")
+#add a couple bounding lines to organize plot
+a=a+geom_vline(xintercept =c(-0.007,-0.0175))
 x11()
 a
-ggsave("figures/figure1.pdf", width=13, height=6)
+ggsave("figures/figure1_truncatedmean_20102030.pdf", width=13, height=6)
 
 #different figure looking at publication date
 dist$pubyear=dat$Year[dist$row]
@@ -181,15 +202,15 @@ a
 #distributions of strucutral changes - with and without structural change
 
 #concatenate Carbon Cycle and Climate System changes into Earth System changes
-dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`=="1.0",1.0,ifelse(dat$`Climate Model`=="1.0",1.0,0)))
+dat$'Earth System'=as.character(ifelse(dat$`Carbon Cycle`==1,1.0,ifelse(dat$`Climate Model`==1,1.0,0)))
 
 struc=dat%>%
-  select("Earth System","Tipping Points":"Learning")%>%
+  dplyr::select("Earth System","Tipping Points":"Learning")%>%
   replace(is.na(.),0)
 
 diststruc=cbind(dist,struc[dist$row,])
 
-diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods")
+diststruc=diststruc%>%dplyr::rename("Tipping Points: Climate"="Tipping Points","Tipping Points: Damages"="Tipping Points2","Limited Substitutability"="Limitedly-Substitutable Goods","Distributional Weighting"="Inequality Aversion")
 
 diststruc=diststruc%>%
   pivot_longer(cols="Earth System":"Learning",names_to="StructuralChange",values_to="Presence")
