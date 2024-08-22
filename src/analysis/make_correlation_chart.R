@@ -1,4 +1,6 @@
-# Load packages
+## setwd("~/research/scciams/scc_structural")
+
+## Load packages
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
   data.table, janitor, magrittr, fixest,
@@ -43,19 +45,34 @@ corrplot(M,
 
 dev.off()
 
-dat2 <- dat %>%
-    select(`Carbon Cycle`:`Alternative ethical approaches (not Discounted Utilitarianism)`)
+## dat2 <- dat %>%
+##     select(`Carbon Cycle`:`Alternative ethical approaches (not Discounted Utilitarianism)`)
+
+dat$`Earth System` <- ifelse(!is.na(dat$`Carbon Cycle`) | !is.na(dat$`Climate Model`), "1", NA)
+
+do.all <- T
+if (do.all) {
+    dat2 <- dat %>%
+        select(c(`Carbon Cycle`, `Climate Model`, `Earth System`, `Tipping Points`:`Alternative ethical approaches (not Discounted Utilitarianism)`))
+    names_vec2 = c("Earth System", "Carbon Cycle", "Climate Model", "Climate Tipping", "Damage Tipping", "Persist/Growth Damage",
+                   "Epstein-Zin", "Ambiguity", "Limited Substitutability", "Inequality Aversion", "Learning", "Alt. Ethical Approaches")
+} else {
+    dat2 <- dat %>%
+        select(c(`Earth System`, `Tipping Points`:`Learning`))
+    names_vec2 = c("Earth System", "Climate Tipping", "Damage Tipping", "Persist/Growth Damage",
+                   "Epstein-Zin", "Ambiguity", "Limited Substitutability", "Inequality Aversion", "Learning")
+}
 
 Ndf <- data.frame()
 for (cc1 in 1:ncol(dat2))
     for (cc2 in cc1:ncol(dat2))
-        Ndf <- rbind(Ndf, data.frame(col1=names_vec[3+cc1], col2=names_vec[3+cc2], count=sum(!is.na(dat2[, cc1]) & !is.na(dat2[, cc2]))))
-Ndf$col1 <- factor(Ndf$col1, names_vec[4:length(names_vec)])
-Ndf$col2 <- factor(Ndf$col2, rev(names_vec[4:length(names_vec)]))
+        Ndf <- rbind(Ndf, data.frame(col1=names_vec2[cc1], col2=names_vec2[cc2], count=sum(!is.na(dat2[, cc1]) & !is.na(dat2[, cc2]))))
+Ndf$col1 <- factor(Ndf$col1, names_vec2)
+Ndf$col2 <- factor(Ndf$col2, rev(names_vec2))
 
 ggplot(Ndf, aes(col1, col2, fill=count)) +
     geom_raster() + geom_label(aes(label=count)) +
     theme_bw() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
     scale_fill_distiller("Estimates", palette='BuPu', direction=1, trans='log10') +
     xlab(NULL) + ylab(NULL)
-ggsave("outputs/num_chart.png", width=6.5, height=5)
+ggsave("outputs/num_chart.png", width=6.5, height=4.5)
