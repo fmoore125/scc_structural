@@ -26,11 +26,7 @@ pre-generated outputs (option 2).
 For both approaches, start by creating an `outputs` directory in the
 root directory of the repository.
 
-#### Option 1: Create new outputs
-
-TODO
-
-#### Option 2: Pre-generated outputs
+#### (Option 2) Restoring pre-generated outputs
 
 Copy the contents of `saved-outputs` to new `outputs` directory.
 
@@ -38,3 +34,26 @@ Download the results from
 [https://drive.google.com/drive/folders/1MiwK6dKQWSTOG_3LINeixzGkbgWVR-pZ?usp=sharing]
 and place these files in a directory named `Structural SCC RF
 Experiments` within the `outputs` directory.
+
+### Abstract search process
+
+The scripts in `src/abstract_search` facilitate the abstract search
+process.
+
+1. `01_uniquepapers.R`: Generates the unique list of papers from the
+  initial word search of the databases (drawn from the files in the
+  `data/abstract_search` directory). This is saved as
+  `outputs/abstract_search/compiledpapers_20200930_finalreview.csv`.
+2. The abstract review process consists of filling out additional
+   columns in this file, and this must now be done. See the result in
+   `data/abstract_search/compiledpapers_20200930_finalreview.csv`. Or
+   you can just use that file. If a new file is created as a result of
+   additional review, save this over the existing
+   `data/abstract_search/compiledpapers_20200930_finalreview.csv`
+   file.
+3. `02_aggregatestats_filtering.R`: Performs some checks on the
+   abstract review process.
+4. `03_postabstract.R`: Generates an additional list of abstracts to
+   check, based on more recent literature. These should be added to
+   the `data/abstract_search/compiledpapers_20200930_finalreview.csv`
+   if it is being regenerated.
