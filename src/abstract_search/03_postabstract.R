@@ -1,8 +1,5 @@
 #post abstract screening
 
-dat=read.csv(file="data/abstract_search/compiledpapers_20200930_Backup20201118.csv")
-dat$Abstract.Filter[which(dat$Abstract.Filter=="NA ")]=NA
-
 #identify additional abstracts for screening based on second review
 
 abstracts=read.csv("data/abstract_search/compiledpapers_20200930_finalreview.csv")
