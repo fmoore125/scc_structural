@@ -28,7 +28,8 @@ compiled=rbind(compiled,econlit_diff_df)
 #subset only to published papers
 compiled_papersonly=compiled[which(compiled$Document.Type%in%c("Article","Letter","J","Scholarly Journals")),]
 
-write.csv(compiled_papersonly,"data/abstract_search/compiledpapers_20200930_finalreview.csv")
+dir.create("outputs/abstract_search", showWarnings = FALSE)
+write.csv(compiled_papersonly,"outputs/abstract_search/compiledpapers_20200930_finalreview.csv")
 
 #post abstract screening
 
@@ -54,4 +55,4 @@ newabstracts=abstracts[toreview,]
 #double check titles don't match ones already being reviewed
 check=which(newabstracts$Title%in%included$Title)
 newabstracts=newabstracts[-check,]
-write.csv(newabstracts,file="data/abstract_search/newabstracts.csv")
+write.csv(newabstracts,file="outputs/abstract_search/newabstracts.csv")
