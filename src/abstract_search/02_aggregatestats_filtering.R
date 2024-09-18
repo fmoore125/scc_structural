@@ -1,4 +1,4 @@
-dat=read.csv("C:/Users/fmoore/Box/Davis Stuff/SCC Structural Uncertainty/Abstract Search/compiledpapers_20200930_finalreview.csv")
+dat=read.csv("data/abstract_search/compiledpapers_20200930_finalreview.csv")
 
 #first code
 firstcode=dat$Abstract.Filter
@@ -20,4 +20,5 @@ agree/sum(is.finite(secondcode))
 thirdcode=dat$Third.Abstract.Filter
 thirdcode[which(is.na(dat$Abstract.Filter)|is.na(dat$Second.NA.Filter))]=NA
 
-agree_third=length(which(secondcode==0&thirdcode==0|secondcode==1&thirdcode==1))
+#agreement of third coder
+length(which(secondcode==0&thirdcode==0|secondcode==1&thirdcode==1))
