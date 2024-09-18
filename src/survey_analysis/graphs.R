@@ -99,7 +99,7 @@ fig2dat_vals=dat%>%
   mutate(across(.cols="Q2_MeanSCC_earth_system":"Q2_MeanSCC_distributional_weighting",.fns=~convertbins(.)))
 
 #simplify names of structural changes
-strucs=c("Earth System","Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Limited Substitutability","Epstein-Zin","Ambiguity/Model Uncertainty","Learning","Inequality Aversion")
+strucs=c("Earth System","Tipping Points: Climate","Tipping Points: Damages","Persistent / Growth Damages","Limited Substitutability","Epstein-Zin","Ambiguity/Model Uncertainty","Learning","Distributional Weighting")
 colnames(fig2dat_vals)[2:10]=strucs
 
 codingqual=data.frame(bin=1:5,meanval=c("Strongly Disagree","Disagree","Neither Agree nor Disagree","Agree","Strongly Agree"))
