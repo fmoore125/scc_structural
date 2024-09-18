@@ -28,30 +28,5 @@ compiled=rbind(compiled,econlit_diff_df)
 #subset only to published papers
 compiled_papersonly=compiled[which(compiled$Document.Type%in%c("Article","Letter","J","Scholarly Journals")),]
 
-write.csv(compiled_papersonly,"data/abstract_search/compiledpapers_20200930_finalreview.csv")
-
-#post abstract screening
-
-dat=read.csv(file="data/abstract_search/compiledpapers_20200930_Backup20201118.csv")
-dat$Abstract.Filter[which(dat$Abstract.Filter=="NA ")]=NA
-
-#identify additional abstracts for screening based on second review
-
-abstracts=read.csv("data/abstract_search/compiledpapers_20200930_finalreview.csv")
-
-included=read.csv("data/abstract_search/currentpapers.csv")
-
-match=which(abstracts$ID_number%in%included$ID_Number)
-
-#take out abstracts already included in review
-abstracts=abstracts[-match,]
-
-#find abstracts not currently included that have a 1 in first, second, or third RA review
-toreview=which(abstracts$Abstract.Filter==1|abstracts$Second.NA.Filter==1|abstracts$Third.Abstract.Filter==1)
-
-newabstracts=abstracts[toreview,]
-
-#double check titles don't match ones already being reviewed
-check=which(newabstracts$Title%in%included$Title)
-newabstracts=newabstracts[-check,]
-write.csv(newabstracts,file="data/abstract_search/newabstracts.csv")
+dir.create("outputs/abstract_search", showWarnings = FALSE)
+write.csv(compiled_papersonly,"outputs/abstract_search/compiledpapers_20200930_finalreview.csv")
