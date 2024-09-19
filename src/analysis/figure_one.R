@@ -33,7 +33,7 @@ distplot=dist[which(dist$year%in%c(2010:2030)),]
 
 #create DR and pub year groups
 distplot$drgroup=cut(distplot$dr,breaks=c(0,2.5,12),na.rm=T,labels=c("<2.5",">=2.5"))
-distplot$pubyeargroup=cut(distplot$pubyear,breaks=c(1999,2012,2022),labels=c("2000-2011","2012-2022"))
+distplot$pubyeargroup=cut(distplot$pubyear,breaks=c(1999,2008,2016,2022),labels=c("2000-2007","2008-2015","2016-2022"))
 #integrate some missing damage function info from Base IAM column
 #simplify damages
 distplot$damages=as.factor(distplot$damages)
@@ -115,7 +115,7 @@ colnames(referencedensity)=c("lowest","min","lower","middle","upper","max","high
 referencedensity=cbind(data.frame(group="Reference"),referencedensity)
 
 densities=rbind(summarytot,referencedensity,diststrucdensities,summarydist_dr,summarydist_pubyear,summarydist_dam,summarydist_type)
-densities$group=factor(densities$group, levels=rev(c("Full Distribution","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Distributional Weights","Epstein-Zin","Learning","Ambiguity/Model Uncertainty","<2.5",">=2.5","2000-2011","2012-2022","DICE","FUND","PAGE","Other","Empirical Improvement","Framework Expansion","Sensitivity Analysis")))
+densities$group=factor(densities$group, levels=rev(c("Full Distribution","Reference","Earth System","Tipping Points: Climate","Tipping Points: Damages","Limited Substitutability","Persistent / Growth Damages","Distributional Weights","Epstein-Zin","Learning","Ambiguity/Model Uncertainty","<2.5",">=2.5","2000-2007","2008-2015","2016-2022","DICE","FUND","PAGE","Other","Empirical Improvement","Framework Expansion","Sensitivity Analysis")))
 ymin=-100;ymax=1100
 densities=densities%>%mutate(across(lowest:mu, function(x) ifelse(x<ymin,ymin,ifelse(x>ymax,ymax,x))))
 
@@ -153,7 +153,7 @@ papers_ref=data.frame(group="Reference",npapers=length(unique(distplot$paper[whi
 
 paperstot=data.frame(group="Full Distribution",npapers=length(unique(distplot$paper)),n=length(unique(distplot$row)))
 
-papersfull=rbind(paperstot,papers_ref,papers, papers_dr[1:2,],papers_pubyear[1:2,],papers_damagegroup[1:4,],papers_type[1:3,])
+papersfull=rbind(paperstot,papers_ref,papers, papers_dr[1:2,],papers_pubyear,papers_damagegroup[1:4,],papers_type[1:3,])
 
 #Figure 1b
 
@@ -164,7 +164,7 @@ a=a+geom_segment(aes(x=group,xend=group,y=lowest,yend=min,col=group),lty=2)+geom
 a=a+geom_point(aes(x=group,y=mu,col=group))
 a=a+annotate("text",x=c(18,10.3,8.7,5,2),y=950,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
 a=a+geom_vline(xintercept=c(21.5,11.5,9.5,7.5,3.5))
-a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2011"="#fbb4b9","2012-2021"="#7a0177","DICE"='#fed976',"FUND"='#fd8d3c',"PAGE"='#f03b20',"Other"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000","Empirical Improvement"="#c2e699","Sensitivity Analysis"="#31a354","Framework Expansion"="#006837"))
+a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2007"="#fbb4b9","2008-2015"="coral3","2016-2022"="#7a0177","DICE"='#fed976',"FUND"='#fd8d3c',"PAGE"='#f03b20',"Other"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000","Empirical Improvement"="#c2e699","Sensitivity Analysis"="#31a354","Framework Expansion"="#006837"))
 a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"),axis.ticks = element_blank(),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
 a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
