@@ -16,9 +16,27 @@ the root of the repository:
    convenience so they do not need to be regenerated.
  - `src/`: The code used to analyse the data
 
+The scripts in the `src/` directory perform analysis, produce figures,
+or provide services to other scripts, as follows:
+
+- `src/abstract_search`: Facilitates the abstract search process (see
+  `2. Abstract search process`) below.
+- `src/analysis`: Performs various analyses of the SCC estimates.
+- `src/data_cleaning_scripts`: Load and clean data
+  "on-the-fly". `cleaning_master.R` is used by all analysis scripts to
+  load the SCC estimates, and this calls the other scripts in that
+  directory, each of which hands a specific data cleaning issue.
+- `src/figures`: Scripts specifically intended to produce paper
+  figures.
+- `src/survey_analysis`: Performs various analyses of the expert
+  survey results.
+
 ## Reproduction Process
 
-### Preparing the `outputs` directory
+The R scripts all assume that the current working directory (e.g., as
+set by `setwd`) is the root directory of the github repository.
+
+### 1. Preparing the `outputs` directory
 
 You may either generate results from scratch (option 1) or use
 pre-generated outputs (option 2).
@@ -35,10 +53,12 @@ Download the results from
 and place these files in a directory named `Structural SCC RF
 Experiments` within the `outputs` directory.
 
-### Abstract search process
+### 2. Abstract search process
 
 The scripts in `src/abstract_search` facilitate the abstract search
-process.
+process. The results of this process are already in
+`data/abstract_search/compiledpapers_20200930_finalreview.csv`, as
+inputs to the paper's analysis, and these steps can be skipped.
 
 1. `01_uniquepapers.R`: Generates the unique list of papers from the
   initial word search of the databases (drawn from the files in the
@@ -57,3 +77,4 @@ process.
    check, based on more recent literature. These should be added to
    the `data/abstract_search/compiledpapers_20200930_finalreview.csv`
    if it is being regenerated.
+   
