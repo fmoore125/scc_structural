@@ -162,14 +162,14 @@ a=a+geom_boxplot(aes(x=group,min=min,lower=lower,middle=middle,upper=upper,max=m
 a=a+scale_y_continuous(breaks=seq(0,1200,by=100),minor_breaks=c(-50,seq(0,400,by=25),seq(400,1200,by=50)), limits=c(-100,1100), expand=c(0, 0))
 a=a+geom_segment(aes(x=group,xend=group,y=lowest,yend=min,col=group),lty=2)+geom_segment(aes(x=group,xend=group,y=max,yend=highest,col=group),lty=2)
 a=a+geom_point(aes(x=group,y=mu,col=group))
-a=a+annotate("text",x=c(18,10.3,8.7,5,2),y=950,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
-a=a+geom_vline(xintercept=c(21.5,11.5,9.5,7.5,3.5))
+a=a+annotate("text",x=c(18,11.5,9,5,2),y=950,label=c("Model\nStructure","Discount\nRate","Publication\nYear","Damages","Paper\nType"))
+a=a+geom_vline(xintercept=c(22.5,12.5,10.5,7.5,3.5))
 a=a+scale_color_manual(values=c("Full Distribution"="black","<2.5"="#253494", ">=2.5"="#41b6c4","2000-2007"="#fbb4b9","2008-2015"="coral3","2016-2022"="#7a0177","DICE"='#fed976',"FUND"='#fd8d3c',"PAGE"='#f03b20',"Other"='#bd0026',"Reference"="grey50","Earth System"="#00B7A7","Tipping Points: Climate"="#554258","Tipping Points: Damages"="#943D67","Limited Substitutability"="#C97B72","Persistent / Growth Damages"="#FFCD12","Inequality Aversion"="#3F9127","Epstein-Zin"="#0A5755","Learning"="#39245D","Ambiguity/Model Uncertainty"="#A40000","Empirical Improvement"="#c2e699","Sensitivity Analysis"="#31a354","Framework Expansion"="#006837"))
 a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =element_rect(fill="white"),plot.margin = unit(c(0,1,1,1), "cm"),axis.ticks = element_blank(),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
 a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
-pdf(file="figures/Science Revision/figure1_full_revised.pdf",width=11,height=11)
+pdf(file="figures/PNAS Revision/figure1_full_revised.pdf",width=11,height=11)
 a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.22,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
 
