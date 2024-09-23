@@ -83,3 +83,16 @@ for(i in 1:n){
 smear=mean(exp(mod_basescc$residuals))
 
 scc_end=exp(log_scc_end)*smear
+
+#get distribution stats
+relprobs=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
+
+truncmean=function(data,trim=0.001){
+  highquant=quantile(data,1-trim)
+  lowquant=quantile(data,trim)
+  return(mean(data[which(data>lowquant&data<highquant)]))
+}
+
+scc_end_quants=quantile(scc_end,relprobs)
+
+scc_end_truncmean=truncmean(scc_end)
