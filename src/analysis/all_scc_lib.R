@@ -1,3 +1,5 @@
+## Functions to prepare data from the literature review for quantitative analysis
+
 basemodelcols <- names(dat)[c(1, 10, 14:16, 18:23)]
 
 get.all.scc <- function(dat) {

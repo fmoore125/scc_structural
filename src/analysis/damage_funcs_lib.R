@@ -1,3 +1,5 @@
+## Functions to construct damage-function-based SCCs
+
 emitdf <- get.emits("RCP 8.5")
 year0 <- 2020
 gdp0 <- 84.54e12

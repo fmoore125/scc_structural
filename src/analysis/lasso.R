@@ -1,3 +1,5 @@
+## Perform a LASSO to project a synthetic SCC by selecting interaction terms.
+
 ## setwd("~/research/scciams/scc_structural/")
 
 library(lfe)

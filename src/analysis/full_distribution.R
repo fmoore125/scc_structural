@@ -1,3 +1,5 @@
+## Translates quantile information into Monte Carlo distribution draws for all literature review observations.
+
 ## setwd("~/research/scciams/scc_structural")
 
 library(readxl)

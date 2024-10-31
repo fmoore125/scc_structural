@@ -1,3 +1,5 @@
+## Generates extra figures on residual variance, official SCC comparisons, and the distribution of structural changes.
+
 library(ggplot2)
 library(data.table)
 library(ggridges)
