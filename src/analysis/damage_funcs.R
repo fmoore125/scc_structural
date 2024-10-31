@@ -1,3 +1,5 @@
+## Performs validation checks on the process to generate damage-function-based SCCs.
+
 ## setwd("~/research/scciams/scc_structural")
 
 source("src/data_cleaining_scripts/cleaning_master.R")

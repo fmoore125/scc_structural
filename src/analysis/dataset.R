@@ -1,3 +1,5 @@
+## Generates tables and figures describing the content of the literature review.
+
 ## setwd("~/research/scciams/scc_structural")
 
 source("src/data_cleaining_scripts/cleaning_master.R")

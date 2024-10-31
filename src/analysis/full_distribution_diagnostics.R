@@ -1,3 +1,5 @@
+## Performs validation checks on the process of translating quantile information into Monte Carlo distribution draws.
+
 ## setwd("~/research/scciams/scc_structural")
 
 library(data.table)

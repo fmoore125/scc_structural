@@ -423,4 +423,3 @@ ggplot(pdf2) +
                                "Risk Aversion (EZ Utility)")) +
     scale_x_continuous(NULL, breaks=c(1:6, (7:9)+.25, 10+.5), labels=levels(pdf2$label), expand=expansion(add=.25)) +
     theme_bw() + ylab("Social cost of carbon (USD/tCO2)")
-ggsave("
