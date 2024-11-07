@@ -92,4 +92,4 @@ mod <- felm(log.scc.2020usd ~ `Backstop Price?` + `Other Market Failure?` + disc
 df$tailindex <- NA
 df$tailindex[results$ii] <- results$xi
 
-mod <- felm(tailindex ~ discountrate + `Epstein-Zin` + `Inequality Aversion` + `Alternative ethical approaches`, data=df, weights=weights) # `Persistent / Growth Damages` + `Limitedly-Substitutable Goods` + `Learning` + `Damages Tipping Point` + `Climate Tipping Point` + `Earth System` + `Ambiguity/Model Uncertainty` + `Other Market Failure?` + `Backstop Price?` +
+mod <- felm(tailindex ~ discountrate + `Epstein-Zin` + `Inequality Aversion` + `Alternative ethical approaches`, data=df, weights=weights) # `Persistent / Growth Damages` + `Limitedly-Substitutable Goods` + `Learning` + `Damages Tipping Point` + `Climate Tipping Point` + `Earth System` + `Ambiguity/Model Uncertainty` + `Other Market Failure?` + `Backstop Price?`

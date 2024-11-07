@@ -119,7 +119,7 @@ for (ii in 1:nrow(dat)) {
                          log.scc.synth=rep(dat$log.scc.synth[ii], length(jjs)+1),
                          missing.scc.synth=rep(dat$missing.scc.synth[ii], length(jjs)+1))
 
-    ## XXX: Try randomly reducing the number of differences we allow (like bagging)
+    ## Try randomly reducing the number of differences we allow (like bagging)
     if (do.bagging == 'half') {
         bagged <- matrix(runif(ncol(preddf) * length(jjs)), length(jjs), ncol(preddf)) > .5
         for (kk in 1:ncol(preddf))
