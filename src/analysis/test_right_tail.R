@@ -10,26 +10,26 @@ options("tidylog.display" = NULL)
 # load main dataset
 source("src/data_cleaining_scripts/cleaning_master.R")
 
-dat = dat |> 
-    clean_names() |> 
+dat = dat |>
+    clean_names() |>
     rename(damage_tipping = tipping_points2,
-           climate_tipping = tipping_points) |> 
+           climate_tipping = tipping_points) |>
     # when doing the max we need numeric values here and not NA
     mutate(carbon_cycle = as.numeric(carbon_cycle),
            carbon_cycle = ifelse(is.na(carbon_cycle), 0, 1),
            climate_model = as.numeric(climate_model),
            climate_model = ifelse(is.na(climate_model), 0, 1)) |>
-    mutate(earth_system = climate_model | carbon_cycle) |> 
-    select(-carbon_cycle, -climate_model) |> 
+    mutate(earth_system = climate_model | carbon_cycle) |>
+    select(-carbon_cycle, -climate_model) |>
     relocate(id_number:climate_tipping, earth_system)
 
 # get row ids for resampling
 row_samples = fread("outputs/distribution.csv")
 
 # resample the dataset
-resampled_df = dat |> 
-    slice(row_samples$row) |> 
-    select(central_value_per_ton_co2) |> 
+resampled_df = dat |>
+    slice(row_samples$row) |>
+    select(central_value_per_ton_co2) |>
     drop_na()
 
 #############################
@@ -78,33 +78,33 @@ mef_df_alt = map_df(unique(mef_df_alt),
 
 
 results = list()
-results[["(1)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .95)), 
+results[["(1)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .95)),
                          weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
-results[["(2)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .90)), 
+results[["(2)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .90)),
                          weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
-results[["(3)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .75)), 
+results[["(3)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .75)),
                          weights = mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
-results[["(4)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > 0), 
+results[["(4)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > 0),
                          weights = mef_df_alt$n[mef_df_alt$x > 0])
-results[["(5)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .95)), 
+results[["(5)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .95)),
                          weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .95)])
-results[["(6)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .90)), 
+results[["(6)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .90)),
                          weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .90)])
-results[["(7)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > quantile(x, .75)), 
+results[["(7)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > quantile(x, .75)),
                          weights = 1/mef_df_alt$n[mef_df_alt$x > quantile(mef_df_alt$x, .75)])
-results[["(8)"]] = feols(me ~ x, 
-                         data = mef_df_alt |> filter(x > 0), 
+results[["(8)"]] = feols(me ~ x,
+                         data = mef_df_alt |> filter(x > 0),
                          weights = mef_df_alt$n[mef_df_alt$x > 0])
 
-betas = lapply(results, function(x) coefficients(x)[2]) |> 
-    cbind() |> 
+betas = lapply(results, function(x) coefficients(x)[2]) |>
+    cbind() |>
     unlist()
 
 gpd_shape = round(betas/(betas + 1), 2)
@@ -113,7 +113,7 @@ tail_index = round((betas + 1)/betas, 2)
 
 rows <- tribble(
     ~term, ~"(1)", ~"(2)", ~"(3)", ~"(4)", ~"(5)", ~"(6)", ~"(7)", ~"(8)",
-    "Minimum Threshold Percentile", "95", "90", "75", "0", "95", "90", "75", "0", 
+    "Minimum Threshold Percentile", "95", "90", "75", "0", "95", "90", "75", "0",
     "Observational Weights", "Num. Obs.", "Num. Obs.", "Num. Obs.", "Num. Obs.", "1/Num. Obs.", "1/Num. Obs.", "1/Num. Obs.", "1/Num. Obs."
 )
 
@@ -130,206 +130,8 @@ msummary(results,
          add_rows = rows,
          title = "Estimates of the Mean Excess Function slope, the Generalized Pareto Distribution shape parameter, and tail index. \\label{tab:tail_index}",
          output = "latex"
-) |> 
-    kable_styling() |> 
+) |>
+    kable_styling() |>
     footnote(general = "Standard errors are robust to heteroskedasticity. All estimates are from a sample that excludes Nordhaus (2019). Columns 1-4 weight observations of the mean excess by the number of SCC observations used to compute it. Columns 5-8 weight observations with the inverse.", threeparttable = TRUE,
-             fixed_small_size = T) |> 
+             fixed_small_size = T) |>
     save_kable(file = "outputs/tail_index.tex")
-
-#############################
-#### Pr(tail | characteristic)
-#############################
-
-tail_prob = .90
-
-#### Early period
-
-early_df = dat |> 
-    rename_with(~str_c("struct_", .), .cols = climate_tipping:alternative_ethical_approaches_not_discounted_utilitarianism) |> 
-    rename_with(~str_c("uncert_", .), .cols = tfp_growth:risk_aversion_ez_utility) |> 
-    select(-starts_with("x"), -min, -max) |> 
-    select(central_value_per_ton_co2, discountrate, scc_year, struct_climate_tipping:uncert_risk_aversion_ez_utility, id_number) |> 
-    slice(row_samples$row) |>  
-    filter(as.numeric(scc_year) < 2030 & as.numeric(scc_year) >= 2010) |> 
-    mutate(in_tail = central_value_per_ton_co2 >= quantile(central_value_per_ton_co2, tail_prob, na.rm = T)) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~as.numeric(.x))) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~replace(., is.na(.), 0))) 
-
-early_df[is.na(early_df)] = 0
-
-# variables to compute odds ratio
-variables_vec = c(names(early_df)[grep(pattern = "uncert_", names(early_df))], names(early_df)[grep(pattern = "struct_", names(early_df))])
-
-odds_df = early_df |> 
-    pivot_longer(
-        cols = all_of(variables_vec),
-        names_to = "parameter",
-        values_to = "on"
-    ) |> 
-    group_by(
-        parameter, in_tail, on
-    ) |> 
-    summarise(n = n()) 
-
-odds_early_df = expand.grid(
-    parameter = unique(odds_df$parameter),
-    in_tail = c(0, 1),
-    on = c(0, 1)
-) |> 
-    left_join(odds_df) |> 
-    mutate(across(n, ~replace(., is.na(.), 0))) |>
-    pivot_wider(
-        names_from = c("in_tail", "on"),
-        values_from = n
-    ) |> 
-    # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
-    mutate(odds_ratio_early = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
-    select(parameter, odds_ratio_early) |> 
-    arrange(desc(odds_ratio_early)) 
-
-#### Mid period
-
-mid_df = dat |> 
-    rename_with(~str_c("struct_", .), .cols = climate_tipping:alternative_ethical_approaches_not_discounted_utilitarianism) |> 
-    rename_with(~str_c("uncert_", .), .cols = tfp_growth:risk_aversion_ez_utility) |> 
-    select(-starts_with("x"), -min, -max) |> 
-    select(central_value_per_ton_co2, discountrate, scc_year, struct_climate_tipping:uncert_risk_aversion_ez_utility, id_number) |> 
-    slice(row_samples$row) |>  
-    filter(as.numeric(scc_year) < 2070 & as.numeric(scc_year) >= 2030) |> 
-    mutate(in_tail = central_value_per_ton_co2 >= quantile(central_value_per_ton_co2, tail_prob, na.rm = T)) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~as.numeric(.x))) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~replace(., is.na(.), 0))) 
-
-mid_df[is.na(mid_df)] = 0
-
-odds_df = mid_df |> 
-    pivot_longer(
-        cols = all_of(variables_vec),
-        names_to = "parameter",
-        values_to = "on"
-    ) |> 
-    group_by(
-        parameter, in_tail, on
-    ) |> 
-    summarise(n = n()) 
-
-odds_mid_df = expand.grid(
-    parameter = unique(odds_df$parameter),
-    in_tail = c(0, 1),
-    on = c(0, 1)
-) |> 
-    left_join(odds_df) |> 
-    mutate(across(n, ~replace(., is.na(.), 0))) |>
-    pivot_wider(
-        names_from = c("in_tail", "on"),
-        values_from = n
-    ) |> 
-    # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
-    mutate(odds_ratio_mid = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
-    select(parameter, odds_ratio_mid) |> 
-    arrange(desc(odds_ratio_mid)) 
-
-#### Late period
-
-late_df = dat |> 
-    rename_with(~str_c("struct_", .), .cols = climate_tipping:alternative_ethical_approaches_not_discounted_utilitarianism) |> 
-    rename_with(~str_c("uncert_", .), .cols = tfp_growth:risk_aversion_ez_utility) |> 
-    select(-starts_with("x"), -min, -max) |> 
-    select(central_value_per_ton_co2, discountrate, scc_year, struct_climate_tipping:uncert_risk_aversion_ez_utility, id_number) |> 
-    slice(row_samples$row) |>  
-    filter(as.numeric(scc_year) <= 2100 & as.numeric(scc_year) >= 2070) |> 
-    mutate(in_tail = central_value_per_ton_co2 >= quantile(central_value_per_ton_co2, tail_prob, na.rm = T)) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~as.numeric(.x))) |> 
-    mutate(across(struct_climate_tipping:uncert_risk_aversion_ez_utility, ~replace(., is.na(.), 0))) 
-
-late_df[is.na(late_df)] = 0
-
-
-odds_df = late_df |> 
-    pivot_longer(
-        cols = all_of(variables_vec),
-        names_to = "parameter",
-        values_to = "on"
-    ) |> 
-    group_by(
-        parameter, in_tail, on
-    ) |> 
-    summarise(n = n()) 
-
-odds_late_df = expand.grid(
-    parameter = unique(odds_df$parameter),
-    in_tail = c(0, 1),
-    on = c(0, 1)
-) |> 
-    left_join(odds_df) |> 
-    mutate(across(n, ~replace(., is.na(.), 0))) |>
-    pivot_wider(
-        names_from = c("in_tail", "on"),
-        values_from = n
-    ) |> 
-    # (in tail & change / not in tail & change) / (in tail & not change / not in tail & not change)
-    mutate(odds_ratio_late = `1_1` / `0_1` / (`1_0` / `0_0` )) |> 
-    select(parameter, odds_ratio_late) |> 
-    arrange(desc(odds_ratio_late)) 
-
-odds_ratio_df =
-    odds_early_df |> 
-    left_join(odds_mid_df) |> 
-    left_join(odds_late_df) |> 
-    arrange(desc(odds_ratio_early))
-
-names(odds_ratio_df) = c("Parameter", "2010-2030", "2030-2070", "2070-2100")
-
-odds_ratio_df = odds_ratio_df |> 
-    mutate(Class = 
-               case_when(
-                   substr(Parameter, 1, 6) == "struct" ~ "Structural Change",
-                   TRUE ~ "Parametric Uncertainty"
-               ),
-           Parameter = substr(Parameter, 8, 50),
-           Parameter = gsub("_", " ", Parameter),
-           Parameter = gsub('[[:digit:]]+', '', Parameter),
-           Parameter = str_to_title(Parameter),
-           Parameter = case_when(
-               Parameter == "Prtp" ~ "Pure Rate of Time Preference",
-               Parameter == "Emuc" ~ "Elasticity of Marginal Utility",
-               Parameter == "Tfp Growth" ~ "TFP Growth",
-               Parameter == "Risk Aversion Ez Utility" ~ "Epstein-Zin Risk Aversion",
-               Parameter == "Tfp Growth" ~ "TFP Growth",
-               Parameter == "Epstein Zin" ~ "Epstein-Zin Preferences",
-               TRUE ~ Parameter
-           )) |> 
-    relocate(Class, Parameter) |> 
-    arrange(Class, Parameter) 
-
-n_struct = sum(odds_ratio_df$Class == "Structural Change")
-n_uncert = sum(odds_ratio_df$Class == "Parametric Uncertainty")
-
-names(odds_ratio_df)[2] = " "
-
-odds_ratio_df$`2010-2030`[is.nan(odds_ratio_df$`2010-2030`)] = NA
-odds_ratio_df$`2030-2070`[is.nan(odds_ratio_df$`2030-2070`)] = NA
-odds_ratio_df$`2070-2100`[is.nan(odds_ratio_df$`2070-2100`)] = NA
-
-# Infs are: no observations of the change and not in tail or no observations of in the tail and not change
-# but we have the other two
-# NaNs are: we dont observe the change in that time period or its always in the tail or always not in the tail
-odds_table <- kbl(odds_ratio_df |> select(-Class), 
-                  format = "latex",
-                  caption = "Odds ratio of being in the top 10 percent of SCC values.",
-                  label = "odds_table",
-                  booktabs = T, 
-                  digits = 1, 
-                  escape = F,
-                  # col.names = linebreak(c("", "Without\nMarket Adaptation", "With\nMarket Adaptation", "Without\nMarket Adaptation", "With\nMarket Adaptation"), align = "c"), 
-                  align = c("l", "c", "c", "c")) %>%
-    pack_rows(index = c("Parametric Uncertainty" = n_uncert, "Structural Change" = n_struct)) %>%
-    add_header_above(c(" " = 1, "Odds Ratios for Being in Right Tail of Distribution" = 3)) %>%
-    kable_styling() %>% 
-    footnote(general = "The values are the odds ratio of being in the top 10 percent of the SCC distribution in each of the three periods comparing SCCs computed using the listed change to those computed without. NA values correspond to when we do not have SCC values with the listed change during that time period (e.g. emissions growth uncertainty in the late period). 0 values correspond to the SCC never being in the top 10 percent with the listed change.", 
-             threeparttable = T,
-             fixed_small_size = T)
-
-fileConn <- file("outputs/odds_ratio.tex")
-writeLines(odds_table, fileConn)
-close(fileConn)
