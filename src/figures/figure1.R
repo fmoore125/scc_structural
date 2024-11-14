@@ -25,7 +25,7 @@ dist$yeargroup=cut(dist$year,breaks=c(2009,2030,2070,2101),labels=c("2010-2030",
 a1=ggplot(dist%>%filter(complete.cases(dist$yeargroup)&dist$yeargroup=="2010-2030"))+geom_density(aes(group=yeargroup,x=draw),adjust=3,lwd=0.75)
 a1=a1+scale_x_continuous(breaks=seq(0,1200,by=100),minor_breaks=c(-50,seq(0,400,by=25),seq(400,1200,by=50)), limits=c(-100,1100), expand=c(0, 0),position="top")
 a1=a1+theme_bw()
-a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text.y = element_blank(),axis.ticks.y=element_blank(), plot.margin = unit(c(1,1,0,1), "cm"),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank()) 
+a1=a1+theme(legend.position =c(0.8,0.8),text=element_text(size=16),strip.background =element_rect(fill="white"),axis.text.y = element_blank(),axis.ticks.y=element_blank(), plot.margin = unit(c(1,1,0,1), "cm"),panel.grid.minor.x = element_line(linewidth = 0.25), panel.grid.major.x = element_line(linewidth = 0.5,color="#959595"), panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank())
 a1=a1+labs(y="",x="")
 
 #retain 2010-2030 values as 2020 equivalent SCC
@@ -169,8 +169,6 @@ a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =
 a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
-pdf(file="figures/PNAS Revision/figure1_full_revised.pdf",width=11,height=11)
+pdf(file="figures/figure1.pdf",width=11,height=11)
 a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.22,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
-
-

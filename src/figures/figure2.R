@@ -207,7 +207,7 @@ AAAAA#BBBB
 "
 patchwork=d+e+plot_layout(design=layout)+plot_annotation(tag_levels="a",tag_suffix = ')')&theme(plot.tag = element_text(size=24))
 
-ggsave("figures/Science Revision/figure2.pdf",plot=patchwork,width=11,height=7,units="in")
+ggsave("figures/figure2.pdf",plot=patchwork,width=11,height=7,units="in")
 
 
 
