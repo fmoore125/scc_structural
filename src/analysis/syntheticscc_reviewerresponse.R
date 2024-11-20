@@ -67,8 +67,8 @@ n=4000
 
 coefdraws=mvrnorm(n=n,mu=regdat$coef,Sigma=varcovar)
 
-#start with DICE model value of $50
-scc_start=50
+#start with DICE model value of $43 in 2020 dollars based on Nordhaus 2018
+scc_start=43
 log_scc_end=numeric(length=n)
 
 for(i in 1:n){
