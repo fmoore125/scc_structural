@@ -169,6 +169,6 @@ a=a+theme(legend.position = "none",text=element_text(size=16),strip.background =
 a=a+labs(x="",y="2020 SCC ($ per ton CO2)")
 a=a+geom_text(data=papersfull,aes(label=paste0("n=",npapers," (",n,")"),x=group,col=group),y=700,position=position_nudge(x=0.25))
 
-pdf(file="figures/figure1.pdf",width=11,height=11)
-a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.22,5))+ plot_annotation(theme = theme(plot.margin = margin()))
+pdf(file="figures/figure1.pdf",width=11,height=12)
+a1+plot_spacer()+a+plot_layout(nrow=3,heights=c(1,-0.12,5))+ plot_annotation(theme = theme(plot.margin = margin()))
 dev.off()
