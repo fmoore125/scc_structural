@@ -11,7 +11,7 @@ library(forcats)
 library(zoo)
 library(patchwork)
 
-dist=fread(file="outputs/distribution_v2_Jan2024.csv")
+dist=fread(file="outputs/distribution_v2.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 

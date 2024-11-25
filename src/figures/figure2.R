@@ -54,7 +54,7 @@ d=ggplot(regdat,aes(x=var,y=coef))+geom_point(col="black")+theme_classic()+
 #------ANOVA Plot----Figure 2b
 
 #multivariate analysis - explain scc variance as a function of structural changes, parametric variance, SCC Year, discount rate
-dist=fread(file="outputs/distribution_v2_Jan2024.csv")
+dist=fread(file="outputs/distribution_v2.csv")
 source("src/data_cleaining_scripts/cleaning_master.R")
 source("src/analysis/damage_funcs_lib.R")
 

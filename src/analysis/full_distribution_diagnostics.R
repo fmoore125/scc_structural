@@ -10,7 +10,7 @@ source("src/data_cleaining_scripts/cleaning_master.R")
 dat$ID_number=as.integer(dat$ID_number)
 papers=unique(dat$ID_number)
 
-dist <- read.csv("outputs/distribution_v2_Jan2024.csv")
+dist <- read.csv("outputs/distribution_v2.csv")
 
 ## make some figures analyzing variance in distribution
 mod=numeric(length=nrow(dist))
@@ -90,7 +90,7 @@ a
 
 ###----compare distributions with and without co-author weighting ---------------
 
-dist=fread(file="outputs/distribution_v2_Jan2024.csv")
+dist=fread(file="outputs/distribution_v2.csv")
 dist_weighted=fread(file="outputs/distribution_coauthorweighted_v2.csv")
 dist_weighted_citations=fread(file="outputs/distribution_citationweighted_v2.csv")
 

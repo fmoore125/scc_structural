@@ -3,7 +3,7 @@ library(ggridges)
 library(patchwork)
 library(data.table)
 
-dist=fread(file="outputs/distribution_v2_Jan2024.csv")
+dist=fread(file="outputs/distribution_v2.csv")
 
 source("src/data_cleaining_scripts/cleaning_master.R")
 

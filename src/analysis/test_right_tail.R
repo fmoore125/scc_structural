@@ -24,7 +24,7 @@ dat = dat |>
     relocate(id_number:climate_tipping, earth_system)
 
 # get row ids for resampling
-row_samples = fread("outputs/distribution.csv")
+row_samples = fread("outputs/distribution_v2.csv")
 
 # resample the dataset
 resampled_df = dat |>

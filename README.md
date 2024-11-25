@@ -53,6 +53,13 @@ next step. Otherwise, do the following:
 [https://drive.google.com/drive/folders/1MiwK6dKQWSTOG_3LINeixzGkbgWVR-pZ?usp=sharing]
 and place these files in a directory named `Structural SCC RF
 Experiments` within the `outputs` directory.
+ - Download the file
+   [https://drive.google.com/file/d/1jJfnwWNs4Q7xZOaRp7f7J5AlnMgpjs2M/view?usp=sharing]
+   and unzip its contents into the `outputs` directory.
+ - If you plan to run the results under traditional random forest
+   methods, download the results from
+   [https://drive.google.com/drive/folders/1RzwAnosTtprtV1EFYlhSYZ6_ACCR7atw?usp=sharing] and place these files in a directory named `Structural SCC RF
+Experiments - Traditional` within the `outputs` directory.
 
 ### 2. Abstract search process (optional)
 

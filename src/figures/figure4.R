@@ -3,9 +3,9 @@ library(data.table)
 library(tidyverse)
 library(MetBrewer)
 
-load("outputs\\randomforest_plots\\rfdistsmodel-final.RData")
+load("outputs/rfdistsmodel-final-precompute.RData")
 source("src/data_cleaining_scripts/cleaning_master.R")
-dist=fread("outputs/distribution_v2_Jan2024.csv")
+dist=fread("outputs/distribution_v2.csv")
 
 #get bar plots for of distributions for example trees
 
@@ -38,7 +38,7 @@ rows_350[[4]]=forest[[350]]$children$`FALSE`$children$'1'$children$`TRUE`$rows
 rows_350[[5]]=forest[[350]]$children$`FALSE`$children$'1'$children$`TRUE`$children$'0'$rows
 rows_350[[6]]=forest[[350]]$children$`FALSE`$children$'1'$children$`TRUE`$children$'0'$children$'0'$rows
 
-#loop through examples and generate quantiles for each 
+#loop through examples and generate quantiles for each
 
 relprobs=c(0.025,0.05,0.25,0.5,0.75,0.95,0.975)
 
@@ -156,7 +156,7 @@ boxplots_draws=ggplot(samplequants,aes(x=y,min=min,lower=lower,middle=middle,upp
 
 
 #generate variable importance plot for random forest
-vip=read.csv("outputs/randomforest_plots/variable_importance_plot_Jan2024.csv")
+vip=read.csv("outputs/randomforest_plots/variable_importance_plot.csv")
 vip$column=ordered(vip$column,levels=vip$column[order(vip$import,decreasing=FALSE)])
 
 a=ggplot(vip,aes(x=import,y=column,fill=Type))+geom_col()+theme_classic()+scale_fill_manual(values=met.brewer("Navajo",4,type="discrete"),labels=c("Damage Fun.","Other","Parametric","Structural"))

@@ -219,7 +219,7 @@ fig3d=ggplot(bayespost)+geom_density(aes(x=prob,group=question),col="deepskyblue
 
 
 # #add variable importance plot
-# vip=read.csv("outputs/randomforest_plots/variable_importance_plot_Jan2024.csv")
+# vip=read.csv("outputs/randomforest_plots/variable_importance_plot.csv")
 # vip$column=fct_reorder(vip$column,vip$import)
 #
 # fig4c=ggplot(vip,aes(x=0,xend=import,y=column,yend=column,col=Type))+geom_segment(linewidth=4)+

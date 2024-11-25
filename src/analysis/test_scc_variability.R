@@ -60,7 +60,7 @@ a <- feols(
     arrange(estimate)
 
 # nonparametric distributions
-distributions <- read_csv("outputs/distribution.csv")
+distributions <- read_csv("outputs/distribution_v2.csv")
 
 # compute moments
 distributions <- distributions %>%
