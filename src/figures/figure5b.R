@@ -3,7 +3,7 @@
 library(ggplot2)
 library(dplyr)
 
-load("outputs/rf_experiments/idealdat.RData")
+load("outputs/idealdat.RData")
 
 get.bar2 <- function(base, modified, label, colour=NA) {
     data.frame(ymin=mean(base), ymax=mean(modified), ci25=quantile(sort(modified) - sort(base), .25) + mean(base),

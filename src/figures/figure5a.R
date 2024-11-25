@@ -36,7 +36,7 @@ if (do.pool.distdisc) {
 }
 
 ## IWG results
-iwg <- read.csv("outputs/iwgruns.csv", row.names=1)
+iwg <- read.csv("data/iwgruns.csv", row.names=1)
 iwgvals <- data.frame()
 for (rate in unique(unlist(iwg[3,]))) {
     if (is.na(rate))

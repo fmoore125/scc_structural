@@ -61,9 +61,9 @@ discountsurvey <- read.csv("data/Drupp_et_al_2018_AEJ_Constant_SDR.csv")
 idealdat$discountrate <- sample(discountsurvey$SDR[!is.na(discountsurvey$SDR)], nrow(idealdat), replace=TRUE)
 
 predict.forest.all(idealdat, incrows, "outputs/rf_experiments/RFD_best.RData")
-save(idealdat, file="outputs/rf_experiments/idealdat.RData")
+save(idealdat, file="outputs/idealdat.RData")
 
-load("outputs/rf_experiments/idealdat.RData")
+load("outputs/idealdat.RData")
 
 ##----A. No structural changes (classic DICE assumptions)-----
 
@@ -311,7 +311,7 @@ get.weighting <- function(forest, datpred) {
     alltrees %>% group_by(row) %>% summarize(weight=length(tree) / count)
 }
 
-load("outputs/rf_experiments/idealdat.RData")
+load("outputs/idealdat.RData")
 
 pdf <- data.frame()
 for (ii in which(incrows)) {
