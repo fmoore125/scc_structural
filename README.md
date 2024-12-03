@@ -122,17 +122,17 @@ structural, parametric, and model specified variation, in
 data for `src/figures/figure2.R` and
 `src/analysis/multivariate_analysis.R`.
 
-## 5. Generate figure 3
+### 6. Generate figure 3
 
 Run the script `src/figures/figure3.R` to generate figure 3 in the
 main text.
 
-## 5. Generate figure 4
+### 7. Generate figure 4
 
 Run the script `src/figures/figure4.R` to generate figure 4 in the
 main text.
 
-### 6. Perform the survey analysis (optional)
+### 8. Perform the survey analysis (optional)
 
 The `src/survey_analysis/Expert-survey-analysis_response-bias_merged.do`
 Stata script operates on the raw survey data. It cannot be run without
@@ -145,7 +145,7 @@ encodes the joint probability of each structural change, run the
 Other figures related to the survey analysis are generated with the
 `src/survey_analysis/graphs.R` script.
 
-### 7. Perform the synthetic SCC analysis (optional)
+### 9. Perform the synthetic SCC analysis (optional)
 
 The synthetic SCC is generated using a custom random forest
 algorithm. The results of this process are provided in
@@ -164,12 +164,12 @@ The distribution-based random forest system is defined in
 The data prepared for synthesis in the random forest system is loaded
 by `src/analysis/randomforest_dists_load.R`.
 
-## 5. Generate figure 5
+### 10. Generate figure 5
 
 Run the scripts `src/figures/figure5a.R` and `src/figures/figure5b.R`
 to generate figure 5 in the main text.
 
-### Auxilliary analysis and figures
+## Auxilliary analysis and figures
 
 All of these are in the `src/analysis` directory unless otherwise specified.
 
@@ -212,7 +212,7 @@ Alternative synthetic SCC calculations:
    synthetic SCC results.
 
 
-### Supporting libraries
+## Supporting libraries
 
 The following R files provide functions that support multiple
 scripts. These are in the `src/analysis` directory.
