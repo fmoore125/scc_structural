@@ -5,6 +5,7 @@
 library(readxl)
 library(tidyverse)
 library(viridisLite)
+library(data.table)
 
 source("src/analysis/find_distribution.R")
 source("src/data_cleaining_scripts/cleaning_master.R")
@@ -70,7 +71,7 @@ if (F) {
 
 coauthorweights=read.csv(file="src/analysis/paper_covariance/paperweightings.csv")
 coauthorweights$prob=coauthorweights$weight/sum(coauthorweights$weight)
-citationweights=read.csv(file="outputs/citations.csv")
+citationweights=read.csv(file="src/analysis/paper_covariance/citations.csv")
 citationweights$prob=citationweights$normalized_peryear/sum(citationweights$normalized_peryear)
 
 dat$ID_number=as.integer(dat$ID_number)

@@ -4,6 +4,7 @@ library(ggplot2)
 library(dplyr)
 
 load("outputs/idealdat.RData")
+rfdist_dir <- "outputs/Structural SCC RF Experiments"
 
 get.bar2 <- function(base, modified, label, colour=NA) {
     data.frame(ymin=mean(base), ymax=mean(modified), ci25=quantile(sort(modified) - sort(base), .25) + mean(base),
@@ -28,16 +29,16 @@ for (seq in seqs) {
         effects <- c(NA, names(idealdat)[rev(c(44:47, 49, 51:56))], names(idealdat)[rev(75:83)], 'Damages', 'Discounting')[-1]
         effects[effects %in% has.structural.uncertainty] <- NA # don't measure these
     } else {
-        load(paste0("outputs/rf_experiments/RFD_J", seq, "_sequence.RData"))
+        load(paste0(rfdist_dir, "/RFD_J", seq, "_sequence.RData"))
         files <- c(paste0('RFD_J', seq, '_', 1:length(sequence)), 'RFD_best')
         effects <- c(sequence, todo[!(todo %in% sequence)])
     }
 
-    load("outputs/rf_experiments/RFD_A_dice.RData")
+    load(file.path(rfdist_dir, "RFD_A_dice.RData"))
     allsamp.last <- allsamp
 
     for (ii in 1:length(files)) {
-        load(paste0("outputs/rf_experiments/", files[ii], ".RData"))
+        load(paste0(rfdist_dir, "/", files[ii], ".RData"))
         allpdf <- rbind(allpdf, get.bar2(allsamp.last, allsamp, effects[ii]))
         allsamp.last <- allsamp
     }
@@ -49,7 +50,7 @@ myorder <- c('Discounting', 'Damages', names(idealdat)[75:83], names(idealdat)[4
 label <- c('Discounting', 'Damages', rep('Structural', length(75:83)), rep('Uncertainty', length(44:57)))
 colour <- c(NA, NA, names(idealdat)[75:83], names(idealdat)[44:57])
 
-load("outputs/rf_experiments/RFD_A_dice.RData")
+load(file.path(rfdist_dir, "/RFD_A_dice.RData"))
 finpdf <- get.bar2(0, allsamp, 'DICE')
 
 for (ii in 1:length(myorder)) {
@@ -59,7 +60,7 @@ for (ii in 1:length(myorder)) {
                                        ci25=ymin + row$ci25, ci75=ymin + row$ci75, label=paste("+", label[ii]), colour=colour[ii]))
 }
 
-load("outputs/rf_experiments/RFD_best.RData")
+load(file.path(rfdist_dir, "/RFD_best.RData"))
 finpdf <- rbind(finpdf, get.bar2(0, allsamp, '= Synthetic\nSCC'))
 
 finpdf$label <- factor(finpdf$label, levels=c('DICE', '+ Discounting', '+ Damages', '+ Structural', '+ Uncertainty',

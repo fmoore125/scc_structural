@@ -36,6 +36,34 @@ or provide services to other scripts, as follows:
 The R scripts all assume that the current working directory (e.g., as
 set by `setwd`) is the root directory of the github repository.
 
+The code uses many libraries. The most commonly used ones are
+`tidyverse` (and its component packages, `ggplot2`, `dplyr`, `tidyr`,
+`lubridate`, `forcats`, and `stringr`), `lfe`,
+`data.table`, `xtable`, `patchwork`, `readxl`, `ggridges`, and
+`MetBrewer`. Others can be instlled as needed. Here is a list of what
+libraries are used where:
+ - `glmnet`: lasso.R
+ - `MASS`: syntheticscc_reviewerresponse.R, bagged_effect_scc.R
+ - `fixest`: figures.R, multivariate_analysis.R, randomforest.R
+ - `plyr`: figures.R, randomforest.R
+ - `zoo`: figures.R
+ - `DALEX` and `ranger`: randomforest_experiments.R, multivariate_analysis.R, randomforest.R
+ - `mice`: variance_decomposition.R
+ - `viridisLite`: full_distribution.R
+ - `sn`: find_distribution.R
+ - `rpart`, `rpart.plot`, and `splines`: regression_tree.R
+ - `modelsummary`: multivariate_analysis.R, randomforest.R
+ - `kSamples`: randomforest_dists_lib.R
+ - `reshape2`: rffigs.R, rffigs_dists.R, bayes.R
+ - `quantreg`: post_structural_damages.R
+ - `see`, `magrittr`, `ggrepel`, `RColorBrewer`: figure3.R
+ - `rriskDistributions`: graphs.R
+ - `EnvStats`: find_distribution.R, graphs.R
+ - `vctrs`: graphs.R
+ - `rstan`: bayes.R
+ - `cluster`: clustering.R
+ - `compare`: datachecks.R
+ 
 ### 1. Preparing the `outputs` directory
 
 You may either generate results from scratch (optional) or use
